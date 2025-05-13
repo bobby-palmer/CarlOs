@@ -8,10 +8,9 @@
 .set NUM_GP_REGS, 32
 .set REG_SIZE, 8
 
-# Use alternative macro syntax (see GNU assembler docs for details)
+# Use alternative macro syntax
 .altmacro
 
-# Common macros
 .macro save_gp i, basereg=t6
   sd x\i, ((\i) * REG_SIZE)(\basereg)
 .endm
@@ -19,7 +18,6 @@
   ld x\i, ((\i) * REG_SIZE)(\basereg)
 .endm
 
-# Importation of linker symbols
 .section .rodata
 .global HEAP_START
 HEAP_START: .dword __heap_start
@@ -73,7 +71,6 @@ _start:
   # Initialize CSRs for M-mode
 
   # Supervisor address translation and protection
-  # SATP should already be zero, but just to make sure ...
   csrw satp, zero
 
   # Machine status
@@ -110,13 +107,11 @@ __bss_zero_loop_end:
   la sp, __kernel_stack_end
   mv fp, sp
 
-  # If kmain returns, we're done with everything so halt forever
+  # loop forever if kmain returns
   la ra, halt_forever
 
-  # Now jump to kmain for M-mode initialization
   mret
 
-# We're already done with everything - let's halt forever
 halt_forever:
   csrw mie, zero
   wfi
