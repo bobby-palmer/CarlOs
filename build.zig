@@ -30,8 +30,9 @@ pub fn build(b: *std.Build) void {
         }
     });
 
-    kernel.setLinkerScript(b.path("kernel/kernel.ld"));
     kernel.out_filename = "kernel.elf";
+    kernel.entry = .{ .symbol_name =  "boot" };
+    kernel.setLinkerScript(b.path("kernel/kernel.ld"));
     b.installArtifact(kernel);
 
     const qemu = b.step("qemu", "Run Qemu");
