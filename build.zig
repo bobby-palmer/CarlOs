@@ -1,6 +1,6 @@
 const std = @import("std");
 
-fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) void {
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .riscv32,
         .os_tag = .freestanding,
@@ -15,12 +15,20 @@ fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    kernel.addCSourceFiles(&.{
-        "kernel/kmain.c",
-    }, &.{
-        "-std=c11", "-g3", "-Wall", "-Wextra",
-        "-fno-stack-protector", "-ffreestanding", "-nostdlib",
+    kernel.addCSourceFiles(.{
+        .files = &.{
+            "kernel/kmain.c"
+        },
+        .flags = &.{
+            "-std=c11",
+            "-g3",
+            "-Wall",
+            "-Wextra",
+            "-fno-stack-protector",
+            "-ffreestanding",
+            "-nostdlib",
+        }
     });
 
-    kernel.setLinkerScript(.{ .path = "kernel/kernel.ld" });
+    kernel.setLinkerScript(b.path("kernel/kernel.ld"));
 }
