@@ -3,9 +3,11 @@ A miniature hobby OS with a great name
 
 ## Dependencies
 - qemu
-- zig 0.14 (for cross compiler)
+- zig 0.14.0
+
+## Run
+`zig build qemu`
 
 ## Current TODO's
-- version control zig build system
 - start libc implementation
-- add memory management / IO
+- add memory management / IO / hardware interface
