@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const kernel = b.addExecutable(.{
-        .name = "kernel",
+        .name = "kernel.elf",
         .target = target,
         .optimize = optimize,
     });
@@ -30,10 +30,8 @@ pub fn build(b: *std.Build) void {
         }
     });
 
-    kernel.out_filename = "kernel.elf";
     kernel.entry = .{ .symbol_name =  "boot" };
     kernel.setLinkerScript(b.path("kernel/kernel.ld"));
-    b.installArtifact(kernel);
 
     const qemu = b.step("qemu", "Run Qemu");
     const runQemu = b.addSystemCommand(&.{
@@ -47,9 +45,11 @@ pub fn build(b: *std.Build) void {
         "mon:stdio",
        "--no-reboot",
         "-kernel",
-       "kernel.elf",
     });
+
+    runQemu.addArtifactArg(kernel);
 
     qemu.dependOn(&runQemu.step);
     runQemu.step.dependOn(&kernel.step);
+
 }
