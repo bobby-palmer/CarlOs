@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) void {
     });
 
     kernel.link_z_max_page_size = 4096;
-    kernel.setLinkerScript(b.path("kernel/kernel.ld"));
+    kernel.setLinkerScript(b.path("kernel/loader/kernel.ld"));
 
     const cflags = &.{
         "-fno-omit-frame-pointer",
@@ -31,12 +31,11 @@ pub fn build(b: *std.Build) void {
     kernel.addCSourceFiles(.{
         .files = &.{
             "kernel/kmain.c",
-            "kernel/uart/uart.c",
         },
         .flags = cflags
     });
 
-    kernel.addAssemblyFile(.{ .cwd_relative =  "kernel/crt0.s"});
+    kernel.addAssemblyFile(.{ .cwd_relative =  "kernel/loader/crt0.s"});
 
 
     const qemu = b.step("qemu", "Run Qemu");
