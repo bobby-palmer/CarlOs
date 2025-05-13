@@ -31,6 +31,7 @@ pub fn build(b: *std.Build) void {
     kernel.addCSourceFiles(.{
         .files = &.{
             "kernel/kmain.c",
+            "kernel/uart/uart.c",
         },
         .flags = cflags
     });
