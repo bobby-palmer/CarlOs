@@ -7,41 +7,42 @@ pub fn build(b: *std.Build) void {
         .abi = .none
     });
 
-    const optimize = b.standardOptimizeOption(.{});
-
     const kernel = b.addExecutable(.{
         .name = "kmain",
         .target = target,
-        .optimize = optimize,
+        .optimize = .ReleaseSmall,
     });
 
+    kernel.link_z_max_page_size = 4096;
+    kernel.setLinkerScript(b.path("kernel/kernel.ld"));
+
     const cflags = &.{
-        "-ffreestanding", 
-        "-nostartfiles", 
-        "-nostdlib", 
-        "-nodefaultlibs", 
-        "-g", 
-        "-Wl,--gc-sections", 
-        "-mcmodel=medany", 
+        "-fno-omit-frame-pointer",
+        "-mcmodel=medany",
+        "-ffreestanding",
+        "-fno-common",
+        "-nostdlib",
+        "-mno-relax",
+        "-fno-stack-protector",
+        "-fno-pie",
     };
 
 
     kernel.addCSourceFiles(.{
         .files = &.{
             "kernel/kmain.c",
-            "kernel/crt0.s",
         },
         .flags = cflags
     });
 
-    kernel.setLinkerScript(b.path("kernel/kernel.ld"));
+    kernel.addAssemblyFile(.{ .cwd_relative =  "kernel/crt0.s"});
+
 
     const qemu = b.step("qemu", "Run Qemu");
     const runQemu = b.addSystemCommand(&.{
         "qemu-system-riscv64",
         "-nographic", 
         "-machine", "virt", 
-        "-m",       "128M",      
         "-bios",    "none", 
        "-kernel", 
     });
