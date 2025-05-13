@@ -1,7 +1,7 @@
 extern char __bss[], __bss_end[], __stack_top[];
 
 void kmain(void) {
-
+  for (;;);
 }
 
 __attribute__((section(".text.boot")))
