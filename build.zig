@@ -31,6 +31,24 @@ pub fn build(b: *std.Build) void {
     });
 
     kernel.setLinkerScript(b.path("kernel/kernel.ld"));
-
+    kernel.out_filename = "kernel.elf";
     b.installArtifact(kernel);
+
+    const qemu = b.step("qemu", "Run Qemu");
+    const runQemu = b.addSystemCommand(&.{
+        "qemu-system-riscv32",
+        "-machine",
+        "virt",
+        "-bios",
+        "default",
+        "-nographic",
+        "-serial",
+        "mon:stdio",
+       "--no-reboot",
+        "-kernel",
+       "kernel.elf",
+    });
+
+    qemu.dependOn(&runQemu.step);
+    runQemu.step.dependOn(&kernel.step);
 }
