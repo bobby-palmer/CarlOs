@@ -2,11 +2,11 @@
 
 void kmain(void) 
 {
+  const char hello[] = "Hello World";
 
-  for (int i = 0; i < 10; ++i) 
-  {
-    kputchar('a' + i);
+  for (int i = 0; i < hello[i]; ++i) {
+    kputchar(hello[i]);
   }
 
-  for (;;);
+  for(;;);
 }

@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
     const kernel = b.addExecutable(.{
         .name = "kmain",
         .target = target,
-        .optimize = .ReleaseFast,
+        .optimize = .ReleaseSmall,
     });
 
     kernel.link_z_max_page_size = 4096;

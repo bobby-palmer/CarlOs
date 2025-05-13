@@ -3,4 +3,6 @@
 
 int kputchar(int);
 
+void kprint(const char *);
+
 #endif
