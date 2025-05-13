@@ -31,4 +31,6 @@ pub fn build(b: *std.Build) void {
     });
 
     kernel.setLinkerScript(b.path("kernel/kernel.ld"));
+
+    b.installArtifact(kernel);
 }
