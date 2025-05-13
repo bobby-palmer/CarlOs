@@ -32,7 +32,5 @@ pub fn build(b: *std.Build) void {
 
     kernel.setLinkerScript(b.path("kernel/kernel.ld"));
 
-    kernel.entry = "boot";
-
     b.installArtifact(kernel);
 }
