@@ -15,6 +15,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSmall,
     });
 
+    kernel.entry = .{ .symbol_name = "kmain" };
     kernel.setLinkerScript(b.path("kernel/kernel.ld"));
 
     const cflags = &.{
