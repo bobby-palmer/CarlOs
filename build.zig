@@ -1,5 +1,6 @@
 const std = @import("std");
 
+// add num cpu integration, currently defaults to 1
 pub fn build(b: *std.Build) void {
 
     const target = b.resolveTargetQuery(.{
@@ -14,8 +15,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSmall,
     });
 
-    kernel.setLinkerScript(b.path("kernel/loader/kernel.ld"));
-    kernel.addAssemblyFile(.{ .cwd_relative =  "kernel/loader/start.s"});
+    kernel.setLinkerScript(b.path("kernel/kernel.ld"));
 
     const cflags = &.{
         "-fno-omit-frame-pointer",
@@ -45,7 +45,7 @@ pub fn build(b: *std.Build) void {
         "qemu-system-riscv64",
         "-nographic", 
         "-machine", "virt", 
-        "-bios",    "none", 
+        "-bios",    "default", // Using OpenSBI
        "-kernel", 
     });
 
@@ -53,5 +53,4 @@ pub fn build(b: *std.Build) void {
 
     qemu.dependOn(&runQemu.step);
     runQemu.step.dependOn(&kernel.step);
-
 }
