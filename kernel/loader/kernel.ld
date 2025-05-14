@@ -1,38 +1,41 @@
 ENTRY(_start)
 
-/* RAM starts at 0x80000000 */
-. = 0x80000000;
-
 SECTIONS {
-  .init : ALIGN(4K) {
-    PROVIDE(__init_start = .);
-    *(.init);
-    PROVIDE(__init_end = .);
+  /* Qemu ram start address */
+  . = 0x80000000;
+
+  .text : {
+    . = ALIGN(0x1000);
+    *(.text .text.*)
   }
-  .text : ALIGN(4K) {
-    PROVIDE(__text_start = .);
-    *(.text);
-    PROVIDE(__text_end = .);
+
+  .rodata : ALIGN(16) {
+    *(.srodata .srodata.*)
+    *(.rodata .rodata.*)
   }
-  .rodata : ALIGN(4K) {
-    PROVIDE(__rodata_start = .);
-    *(.rodata);
-    PROVIDE(__rodata_end = .);
+
+  .data : ALIGN(16) {
+    *(.sdata .sdata.*)
+    *(.data .data.*)
   }
-  .data : ALIGN(4K) {
-    PROVIDE(__data_start = .);
-    *(.data);
-    PROVIDE(__data_end = .);
+
+  .bss : ALIGN(16) {
+    __bss_start = .;
+    *(.sbss .sbss.*)
+    *(.bss .bss.*)
+    __bss_end = .;
   }
-  .bss : ALIGN(4K) {
-    PROVIDE(__bss_start = .);
-    *(.bss);
-    PROVIDE(__bss_end = .);
+
+  .heap : ALIGN(0x1000) {
+    __heap_start = .;
+    . = . + 0x10000; /* 64 KB heap */
+    __heap_end = .;
   }
-  PROVIDE(__global_pointer = .);
-  PROVIDE(__heap_start = .);
-  . = 0x88000000;
-  PROVIDE(__kernel_stack_start = . - 0x80000);
-  PROVIDE(__kernel_stack_end = .);
-  PROVIDE(__heap_size = __kernel_stack_start - __heap_start);
+
+  .stack : ALIGN(0x1000) {
+    __stack_sz = 0x2000; /* 8KB Stack */
+    . = . + NUM_CPU * __stack_sz;
+    __stack_top = .;
+  }
+
 }
