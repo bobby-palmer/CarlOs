@@ -27,6 +27,9 @@ static void init_bss(void)
   }
 }
 
+// inverted logic to ensure it is NOT placed in bss section
+volatile int wait_bss_init = 1;
+
 void kmain(uint64_t hart_id)
 {
   init_stack(hart_id);
@@ -34,13 +37,18 @@ void kmain(uint64_t hart_id)
   if (hart_id == 0) 
   {
     init_bss();
+    wait_bss_init = 0;
 
-    const char Hello[] = "Hello from kmain!";
-
+    const char Hello[] = "\nHello from kmain!\n";
     for (int i = 0; Hello[i]; ++i) 
     {
       sbi_putchar(Hello[i]);
     }
+
+  }
+  else
+  {
+    while (wait_bss_init);
   }
 
   for(;;);
