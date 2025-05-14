@@ -2,7 +2,9 @@
 
 #include "sbi/sbi.h"
 
-#define STACK_SZ 0x4000 // want to remove duplicate definitions
+// want to remove duplicate definitions 
+// using extern char with STACK_SZ = &ch
+#define STACK_SZ 0x4000 
 
 extern char __stack_top[], __bss_start[], __bss_end[];
 
