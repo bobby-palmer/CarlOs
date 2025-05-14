@@ -31,6 +31,7 @@ pub fn build(b: *std.Build) void {
 
     const cfiles = &.{
         "kernel/kmain.c",
+        "kernel/sbi/sbi.c",
     };
 
 

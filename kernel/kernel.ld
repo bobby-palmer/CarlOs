@@ -35,10 +35,8 @@ SECTIONS {
     __heap_end = .;
   }
 
-  __stack_sz = 8K;
-
   .stack : ALIGN(4K) {
-    . += NUM_CPU * __stack_sz;
+    . += NUM_CPU * 8K;
     __stack_top = .;
   }
 }
