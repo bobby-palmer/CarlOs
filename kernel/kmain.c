@@ -8,22 +8,21 @@ void __attribute__((naked)) boot(void) {
     "mv   t0, a0    \n"   // move hart_id to t0
     "addi t0, t0, 1 \n"   // increment hart_id
     "slli t0, t0, 12\n"   // multiply by 4KB (stack size)
-    "la   t1, __end\n"    // load ram start
-    "add  sp, t0, t1\n"   // load to stack pointer
-    "j kmain\n"           // call kmain
+    "la   t1, __end \n"   // load end of kernel memory
+    "add  sp, t0, t1\n"   // set stack pointer = base + 4KB * ID
+    "j    kmain     \n"   // call kmain
   );
 }
 
 extern char __bss_start[], __bss_end[];
 
-void kmain(uint64_t hart_id, void *dtb)
-{
+void kmain(uint64_t hart_id, void *dtb) {
   
-  // zero out bss
-  for (char *i = __bss_start; i != __bss_end; ++i) {
-    *i = 0;
+  if (hart_id == 0) {
+    for (char *i = __bss_start; i != __bss_end; ++i) 
+      *i = 0;
   }
 
-  for(;;);
+  while (1);
 }
 
