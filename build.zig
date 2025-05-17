@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) void {
     const kernel = b.addExecutable(.{
         .name     = "kernel",
         .target   = target,
-        .optimize = b.standardOptimizeOption(.{}),
+        .optimize = .ReleaseSmall,
     });
 
     kernel.entry = .{ .symbol_name = "boot" };
