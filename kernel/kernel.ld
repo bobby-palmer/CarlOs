@@ -1,8 +1,8 @@
-OUTPUT_ARCH("riscv")
 ENTRY(kmain)
 
 SECTIONS {
   /* Start after OpenSBI */
+  /* TODO: Make this nicer */
   . = 0x80200000;
 
   .text : ALIGN(4K) {
