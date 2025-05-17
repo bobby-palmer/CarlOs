@@ -1,6 +1,5 @@
+OUTPUT_ARCH("riscv")
 ENTRY(kmain)
-
-NUM_CPU = DEFINED(NUM_CPU) ? NUM_CPU : 1;
 
 SECTIONS {
   /* Start after OpenSBI */

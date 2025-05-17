@@ -1,6 +1,5 @@
 const std = @import("std");
 
-// add num cpu integration, currently defaults to 1
 pub fn build(b: *std.Build) void {
 
     const target = b.resolveTargetQuery(.{
@@ -40,17 +39,16 @@ pub fn build(b: *std.Build) void {
         .flags = cflags
     });
 
-
-
+    // TODO: add memory and number of cpus
     const qemu = b.step("qemu", "Run Qemu");
     const runQemu = b.addSystemCommand(&.{
         "qemu-system-riscv64",
         "-nographic", 
         "-machine", "virt", 
-        "-bios",    "default", // Using OpenSBI
-       "-kernel", 
+        "-bios",    "default",
     });
 
+    runQemu.addArg("-kernel");
     runQemu.addArtifactArg(kernel);
 
     qemu.dependOn(&runQemu.step);
