@@ -16,14 +16,11 @@ void __attribute__((naked)) boot(void) {
 
 extern char __bss_start[], __bss_end[];
 
-void memset(void *buff, int val, unsigned len) {
-  for (unsigned i = 0; i < len; ++i) ((char*) buff)[i] = val;
-}
-
 void kmain(uint64_t hart_id, void *dtb) {
   
   if (hart_id == 0) {
-    memset(__bss_start, 0, __bss_end - __bss_start);
+    for (char *i = __bss_start; i != __bss_end; ++i) 
+      *i = 0;
   }
 
   while (1);
