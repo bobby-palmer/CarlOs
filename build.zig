@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const kernel = b.addExecutable(.{
-        .name     = "kmain",
+        .name     = "kernel",
         .target   = target,
         .optimize = .ReleaseSmall,
     });
@@ -30,7 +30,6 @@ pub fn build(b: *std.Build) void {
 
     const cfiles = &.{
         "kernel/kmain.c",
-        "kernel/sbi/sbi.c",
     };
 
 
@@ -39,7 +38,6 @@ pub fn build(b: *std.Build) void {
         .flags = cflags
     });
 
-    // TODO: add memory and number of cpus
     const qemu = b.step("qemu", "Run Qemu");
     const runQemu = b.addSystemCommand(&.{
         "qemu-system-riscv64",

@@ -2,7 +2,6 @@ ENTRY(kmain)
 
 SECTIONS {
   /* Start after OpenSBI */
-  /* TODO: Make this nicer */
   . = 0x80200000;
 
   .text : ALIGN(4K) {
@@ -24,18 +23,5 @@ SECTIONS {
     *(.sbss .sbss.*)
     *(.bss .bss.*)
     __bss_end = .;
-  }
-
-  __global_ptr = .;
-
-  .heap : ALIGN(4K) {
-    __heap_start = .;
-    . += 64K;
-    __heap_end = .;
-  }
-
-  .stack : ALIGN(4K) {
-    . += NUM_CPU * 8K;
-    __stack_top = .;
   }
 }
