@@ -1,4 +1,4 @@
-ENTRY(kmain)
+ENTRY(boot)
 
 SECTIONS {
   /* Start after OpenSBI */
@@ -24,4 +24,6 @@ SECTIONS {
     *(.bss .bss.*)
     __bss_end = .;
   }
+
+  PROVIDE(__end = ALIGN(4K));
 }

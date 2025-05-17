@@ -11,10 +11,10 @@ pub fn build(b: *std.Build) void {
     const kernel = b.addExecutable(.{
         .name     = "kernel",
         .target   = target,
-        .optimize = .ReleaseSmall,
+        .optimize = b.standardOptimizeOption(.{}),
     });
 
-    kernel.entry = .{ .symbol_name = "kmain" };
+    kernel.entry = .{ .symbol_name = "boot" };
     kernel.setLinkerScript(b.path("kernel/kernel.ld"));
 
     const cflags = &.{
@@ -38,6 +38,7 @@ pub fn build(b: *std.Build) void {
         .flags = cflags
     });
 
+    // add mem and cpu params
     const qemu = b.step("qemu", "Run Qemu");
     const runQemu = b.addSystemCommand(&.{
         "qemu-system-riscv64",
