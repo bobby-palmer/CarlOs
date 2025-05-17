@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const NUM_CPU = 1;
+
 pub fn build(b: *std.Build) void {
 
     const target = b.resolveTargetQuery(.{
@@ -45,6 +47,7 @@ pub fn build(b: *std.Build) void {
         "-nographic", 
         "-machine", "virt", 
         "-bios",    "default",
+        "-smp",     std.fmt.comptimePrint("{}", .{NUM_CPU})
     });
 
     runQemu.addArg("-kernel");
