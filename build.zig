@@ -40,7 +40,7 @@ pub fn build(b: *std.Build) void {
         .flags = cflags
     });
 
-    // add mem and cpu params
+    // add mem param
     const qemu = b.step("qemu", "Run Qemu");
     const runQemu = b.addSystemCommand(&.{
         "qemu-system-riscv64",
