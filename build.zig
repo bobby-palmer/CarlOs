@@ -12,8 +12,14 @@ pub fn build(b: *std.Build) void {
     const kernel = b.addExecutable(.{
         .name = "carlos.elf",
         .target = target,
+        .code_model = .medium,
         .root_source_file = b.path("src/kernel/kmain.zig")
     });
+
+    kernel.entry = .disabled;
+    kernel.setLinkerScript(b.path("src/kernel/kernel.ld"));
+
+    // emulation
 
     const runQemu = b.addSystemCommand(&.{
         "qemu-system-riscv64",
