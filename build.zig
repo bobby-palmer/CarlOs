@@ -32,6 +32,7 @@ pub fn build(b: *std.Build) void {
 
     const cfiles = &.{
         "kernel/kmain.c",
+        "kernel/sbi/sbi.c",
     };
 
 
@@ -40,7 +41,6 @@ pub fn build(b: *std.Build) void {
         .flags = cflags
     });
 
-    // add mem param
     const qemu = b.step("qemu", "Run Qemu");
     const runQemu = b.addSystemCommand(&.{
         "qemu-system-riscv64",
