@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const kernel = b.addExecutable(.{
-        .name     = "kernel",
+        .name     = "carlos",
         .target   = target,
         .optimize = .ReleaseSmall,
     });
