@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#include "sbi/sbi.h"
+
 extern char __end[];
 
 // Setup stack pointer
@@ -16,13 +18,14 @@ void __attribute__((naked)) boot(void) {
 
 extern char __bss_start[], __bss_end[];
 
-void kmain(uint64_t hart_id, void *dtb) {
+void kmain(uint64_t hart_id, char *dtb) {
   
   if (hart_id == 0) {
     for (char *i = __bss_start; i != __bss_end; ++i) 
       *i = 0;
+
   }
 
-  while (1);
+  while (1); // no return
 }
 
