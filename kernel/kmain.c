@@ -18,7 +18,7 @@ void __attribute__((naked)) boot(void) {
 
 extern char __bss_start[], __bss_end[];
 
-void kmain(uint64_t hart_id, char *dtb) {
+void kmain(uint64_t hart_id, void *dtb) {
   
   if (hart_id == 0) {
     for (char *i = __bss_start; i != __bss_end; ++i) 
