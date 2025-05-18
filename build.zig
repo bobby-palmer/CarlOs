@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
     const kernel = b.addExecutable(.{
         .name = "carlos.elf",
         .target = target,
-        .root_source_file = b.path("kernel/kmain.zig")
+        .root_source_file = b.path("src/kernel/kmain.zig")
     });
 
     const runQemu = b.addSystemCommand(&.{
