@@ -19,11 +19,11 @@ SECTIONS {
   }
 
   .bss : ALIGN(4K) {
-    __bss_start = .;
+    PROVIDE(__bss_start = .);
     *(.sbss .sbss.*)
     *(.bss .bss.*)
-    __bss_end = .;
+    PROVIDE(__bss_end = .);
   }
 
-  PROVIDE(__end = ALIGN(4K));
+  PROVIDE(__kernel_end = ALIGN(4K));
 }

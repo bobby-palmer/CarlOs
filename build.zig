@@ -26,6 +26,8 @@ pub fn build(b: *std.Build) void {
         "-nographic", 
         "-machine",     "virt", 
         "-bios",        "default",
+        "-smp",         "1",    // set number of cpus
+        "-m",           "128M"  // set ram
     });
 
     runQemu.addArg("-kernel");
