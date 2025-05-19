@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/kernel/kmain.zig")
     });
 
-    kernel.entry = .disabled;
+    kernel.entry = .{ .symbol_name = "boot" };
     kernel.setLinkerScript(b.path("src/kernel/kernel.ld"));
 
     // emulation

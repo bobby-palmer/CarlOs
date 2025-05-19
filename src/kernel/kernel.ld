@@ -5,6 +5,7 @@ SECTIONS {
   . = 0x80200000;
 
   .text : ALIGN(4K) {
+    *(.text.boot)
     *(.text .text.*)
   }
 
