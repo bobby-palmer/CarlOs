@@ -1,5 +1,4 @@
-
-// Set stack pointer = (hard_id + 1) * 4096 + __kernel_end
+// Set stack pointer = (hart_id + 1) * 4096 + __kernel_end
 // call kmain
 // loop forever
 export fn boot() linksection(".text.boot") callconv(.naked) noreturn {
@@ -9,18 +8,24 @@ export fn boot() linksection(".text.boot") callconv(.naked) noreturn {
         \\ slli t1, t1, 12
         \\ add  sp, t0, t1
         \\ call kmain
-        \\ 1: j 1b
+        \\ 1:
+        \\ wfi
+        \\ j 1b
     );
 }
 
-export fn kmain(hart_id: u64) void {
+const ftb = @import("ftb.zig");
+const sbi = @import("sbi.zig");
 
-    if (hart_id == 0) {
-        zero_bss();
+export fn kmain(hart_id: u32, dtb: ftb.Dtb) void {
+
+    if (hart_id == ftb.getBootCpuId(dtb)) {
+        zeroBss();
+        sbi.putChar('Y');
     }
 }
 
-fn zero_bss() void {
+fn zeroBss() void {
     const bss_start = @extern([*]u8, .{.name = "__bss_start"});
     const bss_end   = @extern([*]u8, .{.name = "__bss_end"});
     const bss_len = @intFromPtr(bss_end) - @intFromPtr(bss_start);
