@@ -21,7 +21,7 @@ export fn kmain(hart_id: u32, dtb: ftb.Dtb) void {
 
     if (hart_id == ftb.getBootCpuId(dtb)) {
         zeroBss();
-        sbi.putChar('Y');
+        sbi.putChar('B');
     }
 }
 

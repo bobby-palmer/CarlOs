@@ -13,8 +13,12 @@ const DtbHeader = extern struct {
 
 pub const Dtb = [*]align(@alignOf(DtbHeader)) u8;
 
+const std = @import("std");
+
 pub fn getBootCpuId(dtb: Dtb) u32 {
     return (
-        @as(*DtbHeader, @ptrCast(dtb)).*.boot_cpuid_phys
+        std.mem.bigToNative(u32, 
+            @as(*DtbHeader, @ptrCast(dtb)).*.boot_cpuid_phys
+        )
     );
 }
