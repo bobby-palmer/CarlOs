@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
         .name = "carlos.elf",
         .target = target,
         .code_model = .medium,
-        .root_source_file = b.path("src/kernel/kmain.zig")
+        .root_source_file = b.path("src/kernel/boot.zig")
     });
 
     kernel.entry = .{ .symbol_name = "boot" };
