@@ -4,6 +4,8 @@ SECTIONS {
   /* Start after OpenSBI */
   . = 0x80200000;
 
+  PROVIDE(__kernel_start = .);
+
   .text : ALIGN(4K) {
     *(.text.boot)
     *(.text .text.*)
