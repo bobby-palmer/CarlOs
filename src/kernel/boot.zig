@@ -16,8 +16,6 @@ export fn boot2(_: u64, dtb: [*] const u8) noreturn {
     while (true) {}
 }
 
-const std = @import("std");
-
 fn zeroBss() void {
     const bss_start = @extern([*] u8, .{.name = "__bss_start"});
     const bss_end = @extern([*] u8, .{.name = "__bss_end"});
@@ -25,6 +23,8 @@ fn zeroBss() void {
     const len = bss_end - bss_start;
     @memset(bss_start[0..len], 0);
 }
+
+const std = @import("std");
 
 fn initRam(dtb: [*] const u8) void {
     const fdt_header = @as(* const FdtHeader, @ptrCast(@alignCast(dtb)));
@@ -35,10 +35,10 @@ fn initRam(dtb: [*] const u8) void {
         @sizeOf(FdtHeader) + std.mem.bigToNative(u32, fdt_header.off_dt_struct); 
 
     for (0..tree_size) |i| {
-        if (std.mem.bigToNative(u32, tree[i]) == FDT_BEGIN_NODE) {
-            if (std.mem.eql(u8, "memory", fdtGetNodeName(@ptrCast(tree + i + 1)))) {
-                putChar('Y');
-            }
+        if (std.mem.bigToNative(u32, tree[i]) == FDT_BEGIN_NODE and
+            std.mem.eql(u8, "memory", fdtGetNodeName(@ptrCast(tree + i + 1)))) {
+
+            print("found memory");
         }
     }
 }
@@ -84,4 +84,10 @@ fn putChar(ch: u8) void {
           [legacy] "{a7}" (1),
         : "memory", "a0", "a1"
     );
+}
+
+fn print(str: [] const u8) void {
+    for (str) |ch| {
+        putChar(ch);
+    }
 }
