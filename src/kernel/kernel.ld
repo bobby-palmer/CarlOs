@@ -7,7 +7,7 @@ SECTIONS {
   PROVIDE(__kernel_start = .);
 
   .text : ALIGN(4K) {
-    *(.text.boot)
+    KEEP(*(.text.boot))
     *(.text .text.*)
   }
 
