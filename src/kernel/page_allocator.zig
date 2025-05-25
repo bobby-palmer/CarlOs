@@ -1,5 +1,5 @@
 // need a way to not add reserved spots
-pub fn addRam(start: usize, len: usize) void {
+pub fn addRam(start: u64, len: u64) void {
     _ = start;
     _ = len;
 }
