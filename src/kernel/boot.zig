@@ -36,8 +36,7 @@ fn initRam(dtb: [*] const u8) void {
 
 
     // reserve section offset
-    _ = @as([*] const u8, @ptrCast(fdt_header))
-        + std.mem.bigToNative(u32, fdt_header.off_mem_rsvmap);
+    _ = dtb + std.mem.bigToNative(u32, fdt_header.off_mem_rsvmap);
 
     // get reg offset
     const strings = dtb + std.mem.bigToNative(u32, fdt_header.off_dt_strings);
@@ -68,7 +67,8 @@ fn initRam(dtb: [*] const u8) void {
                         base <<= @sizeOf(u32);
                         base |= std.mem.bigToNative(u32, prop[reg * 4 + 1]);
 
-                        var extend: u64 = std.mem.bigToNative(u32, prop[reg * 4 + 2]);
+                        var extend: u64 = std.mem.bigToNative(u32, 
+                            prop[reg * 4 + 2]);
                         extend <<= @sizeOf(u32);
                         extend |= std.mem.bigToNative(u32, prop[reg * 4 + 3]);
 
@@ -87,6 +87,7 @@ fn initRam(dtb: [*] const u8) void {
 
 }
 
+// FDT spec, move this to its own parser later
 const FDT_BEGIN_NODE = 0x00000001;
 const FDT_END_NODE = 0x00000002;
 const FDT_PROP = 0x00000003;
@@ -163,7 +164,7 @@ fn printNull(str: [*:0] const u8) void {
     }
 }
 
-fn printu32(num: u32) void {
+fn printU32(num: u32) void {
     if (num == 0) {
         putChar('0');
     } else {
