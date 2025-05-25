@@ -34,10 +34,6 @@ fn initRam(dtb: [*] const u8) void {
     const tree_size = std.mem.bigToNative(u32, fdt_header.size_dt_struct) 
         / @sizeOf(u32);
 
-
-    // reserve section offset
-    _ = dtb + std.mem.bigToNative(u32, fdt_header.off_mem_rsvmap);
-
     // get reg offset
     const strings = dtb + std.mem.bigToNative(u32, fdt_header.off_dt_strings);
     const strings_size = std.mem.bigToNative(u32, fdt_header.size_dt_strings);
@@ -72,11 +68,9 @@ fn initRam(dtb: [*] const u8) void {
                         extend <<= @sizeOf(u32);
                         extend |= std.mem.bigToNative(u32, prop[reg * 4 + 3]);
 
-                        print("Reg: ");
                         printHex(base);
-                        print("  ");
                         printHex(extend);
-                        print("\n");
+
                     }
                 }
 
@@ -84,7 +78,6 @@ fn initRam(dtb: [*] const u8) void {
             }
         }
     }
-
 }
 
 // FDT spec, move this to its own parser later
