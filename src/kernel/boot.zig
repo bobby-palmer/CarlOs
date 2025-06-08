@@ -69,9 +69,9 @@ fn initRam(dtb: [*] const u8) void {
                         printHex(base);
                         printHex(extend);
 
-                        const kernel_end = @extern([*] u8, .{
+                        const kernel_end: u64 = @intFromPtr(@extern([*] u8, .{
                             .name = "__kernel_end"
-                        }); 
+                        })); 
 
                         if (base <= kernel_end and kernel_end < base + extend) {
                             const alloc = @import("page_allocator.zig");
