@@ -66,9 +66,6 @@ fn initRam(dtb: [*] const u8) void {
                         extend <<= @sizeOf(u32);
                         extend |= std.mem.bigToNative(u32, prop[reg * 4 + 3]);
 
-                        printHex(base);
-                        printHex(extend);
-
                         const kernel_end: u64 = @intFromPtr(@extern([*] u8, .{
                             .name = "__kernel_end"
                         })); 
@@ -76,6 +73,8 @@ fn initRam(dtb: [*] const u8) void {
                         if (base <= kernel_end and kernel_end < base + extend) {
                             const alloc = @import("page_allocator.zig");
                             alloc.addRam(kernel_end + 4096, base + extend);
+
+                            print("Added Ram");
                         }
                     }
 
