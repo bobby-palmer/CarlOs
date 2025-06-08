@@ -34,7 +34,6 @@ fn initRam(dtb: [*] const u8) void {
     const tree_size = std.mem.bigToNative(u32, fdt_header.size_dt_struct) 
         / @sizeOf(u32);
 
-    // get reg offset
     const strings = dtb + std.mem.bigToNative(u32, fdt_header.off_dt_strings);
     const strings_size = std.mem.bigToNative(u32, fdt_header.size_dt_strings);
     const reg_offset = fdtGetStringOff("reg", strings, strings_size);
@@ -43,7 +42,6 @@ fn initRam(dtb: [*] const u8) void {
         return;
     }
 
-    // iterate free ram blocks
     for (0..tree_size) |i| {
 
         if (std.mem.bigToNative(u32, tree[i]) == FDT_BEGIN_NODE and
@@ -71,7 +69,17 @@ fn initRam(dtb: [*] const u8) void {
                         printHex(base);
                         printHex(extend);
 
+                        const kernel_end = @extern([*] u8, .{
+                            .name = "__kernel_end"
+                        }); 
+
+                        if (base <= kernel_end and kernel_end < base + extend) {
+                            const alloc = @import("page_allocator.zig");
+                            alloc.addRam(kernel_end + 4096, base + extend);
+                        }
                     }
+
+                    
                 }
 
                 j += 1;
