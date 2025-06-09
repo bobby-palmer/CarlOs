@@ -11,6 +11,10 @@ SECTIONS {
     *(.text .text.*)
   }
 
+  .text.trap : ALIGN(4) {
+    *(.text.trap)
+  }
+
   .rodata : ALIGN(4K) {
     *(.srodata .srodata.*)
     *(.rodata .rodata.*)
