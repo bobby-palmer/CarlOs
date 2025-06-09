@@ -111,9 +111,20 @@ const TrapFrame = extern struct {
 const sbi = @import("sbi.zig");
 const print = @import("print.zig");
 
+const SCAUSE_ECALL = 8;
+
 export fn handleTrap(frame: *TrapFrame) void {
-    _ = sbi.readCsr("scause");
+    const scause = sbi.readCsr("scause");
     _ = sbi.readCsr("stval");
-    _ = sbi.readCsr("sepc");
+    var user_pc = sbi.readCsr("sepc");
     _ = frame;
+
+    if (scause == SCAUSE_ECALL) {
+        user_pc += 4;
+    } else {
+        print.print("Bad trap!\n");
+        while (true) {} // panic
+    }
+
+    sbi.writeCsr("sepc", user_pc);
 }
