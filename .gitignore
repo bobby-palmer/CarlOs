@@ -1,4 +1,9 @@
-.zig-cache/
-zig-out/
-.cache/
-compile_commands.json/
+/disk/*
+!/disk/.gitkeep
+*.map
+*.tar
+*.o
+*.elf
+*.bin
+*.log
+*.pcap
