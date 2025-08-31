@@ -1,3 +1,0 @@
-0
-163 90590467 1747164148011326151 310f3a43f12b0668737b8621c0d44390 0 /Users/bobbypalmer/projects/carlos/kernel/kmain.c
-86 90590338 1747164100840316679 9bbbc58497d879317beb8c09c77c7419 0 /Users/bobbypalmer/projects/carlos/kernel/uart/uart.h

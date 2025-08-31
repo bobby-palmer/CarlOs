@@ -1,2 +1,0 @@
-0
-71 90580482 1747160624677837056 6038d3d0d1070ae1dec9c256c69b3608 0 /Users/bobbypalmer/projects/carlos/kernel/kmain.c
