@@ -5,7 +5,7 @@ export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
     );
 }
 
-export fn kmain() noreturn {
+export fn kmain(_: u64) noreturn {
     clearBss();
 
     const sbi = @import("sbi.zig");
