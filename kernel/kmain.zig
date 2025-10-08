@@ -1,3 +1,4 @@
+/// fn for the boot hart to get tmp stack
 export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
     asm volatile (
         \\ la sp, __stack_top
@@ -5,15 +6,13 @@ export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
     );
 }
 
-export fn kmain(_: u64) noreturn {
+/// rest of setup for the boot hart
+export fn kmain(_: u64, _: [*]const u8) noreturn {
     clearBss();
-
-    const sbi = @import("sbi.zig");
-    _ = sbi.debug_print("Hello from kmain\n");
-
     while (true) {}
 }
 
+// TODO make these scoped to the fn below
 extern var __bss: u8;
 extern var __bss_end: u8;
 

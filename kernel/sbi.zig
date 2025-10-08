@@ -3,7 +3,7 @@ pub const Ret = struct {
     value: isize,
 };
 
-pub fn debug_print(message: []const u8) Ret {
+pub fn debugPrint(message: []const u8) Ret {
     var err: isize = undefined;
     var val: isize = undefined;
 
