@@ -16,6 +16,7 @@ pub fn build(b: *std.Build) void {
         .name = "kernel",
         .root_module = b.createModule(.{
             .root_source_file = b.path("kernel/kmain.zig"),
+            .code_model = .medium,
             .target = target,
             .optimize = optimize,
         })

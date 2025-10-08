@@ -1,5 +1,5 @@
 MEMORY {
-  kernel_space (rwx) : ORIGIN = 0x80200000, LENGTH = 128K
+  kernel_space (rwx) : ORIGIN = 0x80200000, LENGTH = 16M
 }
 
 SECTIONS {
