@@ -7,7 +7,7 @@ export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
 }
 
 /// rest of setup for the boot hart
-export fn kmain(_: u64, _: [*]const u8) noreturn {
+export fn kmain(_: u64, dtb_bytes: [*]const u8) noreturn {
     clearBss();
     while (true) {}
 }
