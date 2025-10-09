@@ -18,13 +18,6 @@ export fn kmain(_: u64, _: [*]const u8) noreturn {
 
     const allocator = fa.allocator();
 
-    _ = allocator.alloc(u64, 1) catch {
-        _ = sbi.debugPrint("Failed!");
-        stop();
-    };
-
-    _ = sbi.debugPrint("Good!");
-
     stop();
 }
 
