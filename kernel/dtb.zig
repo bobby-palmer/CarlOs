@@ -30,37 +30,26 @@ const Header = extern struct {
     }
 };
 
-const Structs = struct {
-    elts: []const u32,
-
-    fn fromSlice(data: []const u8) Structs {
-        const len = data.len / @sizeOf(u32);
-
-        const u32_ptr = @as(
-            [*]const u32,
-            data.ptr
-        );
-
-        return Structs {
-            .elts = u32_ptr[0..len]
-        };
-    }
+pub const ReserveEntry = struct {
+    address: u64,
+    size: u64,
 };
 
-const Strings = struct {
-    elts: []const u8,
-
-    fn fromSlice(data: []const u8) Strings {
-        return Strings {
-            .elts = data
-        };
-    }
-};
-
-const MemRsvMap = struct {
+const MemRsvIterator = struct {
     elts: [*]const u64,
-};
 
-const DtbParser = struct {
-    header: Header,
+    pub fn next(self: *MemRsvIterator) ?ReserveEntry {
+        const address = std.mem.bigToNative(u64, self.elts[0]);    
+        const size = std.mem.bigToNative(u64, self.elts[1]);
+
+        if (address == 0 and size == 0) {
+            return null;
+        } else {
+            self.elts += 2;
+            return ReserveEntry {
+                .address = address,
+                .size = size,
+            };
+        }
+    }
 };
