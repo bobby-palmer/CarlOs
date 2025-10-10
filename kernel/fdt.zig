@@ -142,8 +142,14 @@ pub const Fdt = struct {
         }
     };
 
+    pub const MemRsvEntry = struct {
+        address: u64,
+        size: u64,
+    };
+
     header: Header,
     root: StructNode,
+    mem_rsv_map: std.ArrayList(MemRsvEntry),
 
     pub fn init(bytes: [*]const u8, allocator: std.mem.Allocator) !Fdt {
         const header = Header.fromBytes(bytes);
@@ -152,13 +158,28 @@ pub const Fdt = struct {
         const struct_ptr: [*]const u32 = @ptrCast(@alignCast(bytes + header.off_dt_struct));
         const root = try StructNode.init(struct_ptr, &strings, allocator);
 
+        var rsv_ptr: [*]const u64 = @ptrCast(@alignCast(bytes + header.off_mem_rsvmap));
+        var mem_rsv_map = try std.ArrayList(MemRsvEntry).initCapacity(allocator, 10);
+
+        while (rsv_ptr[0] != 0 or rsv_ptr[1] != 0) {
+            const entry = MemRsvEntry {
+                .address = std.mem.bigToNative(u64, rsv_ptr[0]),
+                .size = std.mem.bigToNative(u64, rsv_ptr[1]),
+            };
+
+            try mem_rsv_map.append(allocator, entry);
+            rsv_ptr += 2;
+        }
+
         return Fdt {
             .header = header,
             .root = root.@"0",
+            .mem_rsv_map = mem_rsv_map,
         };
     }
 
     pub fn deinit(self: *const Fdt, allocator: std.mem.Allocator) void {
         self.root.deinit(allocator);
+        self.mem_rsv_map.deinit(allocator);
     }
 };
