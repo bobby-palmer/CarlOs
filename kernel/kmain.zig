@@ -28,6 +28,8 @@ export fn kmain(_: u64, dtb: [*]const u8) noreturn {
     }
 
     printNode(device_tree.root);
+    
+    // NECT STEPS
 
     stop();
 }
