@@ -12,34 +12,25 @@ const sbi = @import("sbi.zig");
 /// rest of setup for the boot hart
 export fn kmain(_: u64, _: [*]const u8) noreturn {
     clearBss();
-
-    const buffer = getHeapBuffer();
-    var fa = std.heap.FixedBufferAllocator.init(buffer);
-
-    const allocator = fa.allocator();
-
     stop();
 }
 
+/// Halt cpu
 fn stop() noreturn {
     while (true) {
         asm volatile ("wfi");
     }
 }
 
+// TODO learn about this!
 extern var __bss: u8;
 extern var __bss_end: u8;
 
 fn clearBss() void {
-    
     const bss_start = @intFromPtr(&__bss);
     const bss_end = @intFromPtr(&__bss_end);
     const bss_len = bss_end - bss_start;
 
-    if (bss_len == 0) {
-        _ = sbi.debugPrint("Bad len\n");
-    }
-    
     const bss_slice = @as([*]u8, @ptrFromInt(bss_start))[0..bss_len];
     @memset(bss_slice, 0);
 }
