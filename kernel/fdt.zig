@@ -122,6 +122,16 @@ pub const Fdt = struct {
 
             return .{ node, head + 1};
         }
+
+        fn deinit(self: *const StructNode, allocator: std.mem.Allocator) void {
+
+            for (self.sub_nodes.items) |sub_node| {
+                sub_node.deinit(allocator);
+            }
+
+            self.sub_nodes.deinit(allocator);
+            self.props.deinit(allocator);
+        }
     };
 
     const Strings = struct {
@@ -146,5 +156,9 @@ pub const Fdt = struct {
             .header = header,
             .root = root.@"0",
         };
+    }
+
+    pub fn deinit(self: *const Fdt, allocator: std.mem.Allocator) void {
+        self.root.deinit(allocator);
     }
 };
