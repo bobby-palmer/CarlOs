@@ -18,12 +18,13 @@ export fn kmain(_: u64, dtb: [*]const u8) noreturn {
     const allocator = fa.allocator();
 
     const device_tree = fdt.Fdt.init(dtb, allocator) catch {
-        _ = sbi.debugPrint("BAD\n");
+        _ = sbi.debugPrint("Bad fdt\n");
         stop();
     };
 
-    if (device_tree.header.verify()) {
-        _ = sbi.debugPrint("Verified\n");
+    if (!device_tree.header.verify()) {
+        _ = sbi.debugPrint("Cannot verify fdt header\n");
+        stop();
     }
 
     printNode(device_tree.root);
