@@ -18,16 +18,34 @@ export fn kmain(_: u64, dtb: [*]const u8) noreturn {
     const allocator = fa.allocator();
 
     const device_tree = fdt.Fdt.init(dtb, allocator) catch {
-        _ = sbi.debugPrint("BAD");
+        _ = sbi.debugPrint("BAD\n");
         stop();
     };
 
     if (device_tree.header.verify()) {
-        _ = sbi.debugPrint("Verified");
+        _ = sbi.debugPrint("Verified\n");
     }
 
+    printNode(device_tree.root);
 
     stop();
+}
+
+fn printNode(node: fdt.Fdt.StructNode) void {
+    _ = sbi.debugPrint(node.name);
+    _ = sbi.debugPrint("\n");
+    _ = sbi.debugPrint("Props:\n");
+
+    for (node.props.items) |prop| {
+        _ = sbi.debugPrint(prop.name);
+        _ = sbi.debugPrint(": ");
+        _ = sbi.debugPrint(prop.value);
+        _ = sbi.debugPrint("\n");
+    }
+
+    for (node.sub_nodes.items) |sub_node| {
+        printNode(sub_node);
+    }
 }
 
 /// Halt cpu
