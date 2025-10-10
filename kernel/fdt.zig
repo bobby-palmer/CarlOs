@@ -16,7 +16,7 @@ pub const Fdt = struct {
 
         fn fromBytes(bytes: [*]const u8) Header {
             var result: Header = undefined;
-            const byte_slice = bytes[0..@sizeOf(result)];
+            const byte_slice = bytes[0..@sizeOf(Header)];
 
             std.mem.copyForwards(u8, std.mem.asBytes(&result), byte_slice);
 
@@ -31,7 +31,7 @@ pub const Fdt = struct {
         }
 
         /// Return true if header is valid
-        pub fn verify(self: *const Fdt) bool {
+        pub fn verify(self: *const Header) bool {
             return self.magic == 0xd00dfeed;
         }
     };
@@ -76,7 +76,7 @@ pub const Fdt = struct {
             return std.mem.bigToNative(u32, word[0]);
         }
 
-        fn init(words: [*]const u32, strings: *const Strings, allocator: std.mem.Allocator) struct {StructNode, [*]const u32} {
+        fn init(words: [*]const u32, strings: *const Strings, allocator: std.mem.Allocator) !struct {StructNode, [*]const u32} {
             var head = words;
 
             while (read(head) != FDT_BEGIN_NODE) {
@@ -92,8 +92,8 @@ pub const Fdt = struct {
                 std.mem.alignForward(usize, @intFromPtr(name.ptr + name.len + 1), @alignOf(u32))
             );
 
-            var props = std.ArrayList(PropNode).init(allocator);
-            var sub_nodes = std.ArrayList(StructNode).init(allocator);
+            var props = try std.ArrayList(PropNode).initCapacity(allocator, 10);
+            var sub_nodes = try std.ArrayList(StructNode).initCapacity(allocator, 10);
 
             while (true) {
                 const token = read(head);
@@ -103,11 +103,11 @@ pub const Fdt = struct {
                 }
                 else if (token == FDT_PROP) {
                     const res = PropNode.fromWords(head, strings);
-                    props.append(res.@"0");
+                    try props.append(allocator, res.@"0");
                     head = res.@"1";
                 } else if (token == FDT_BEGIN_NODE) {
-                    const res = StructNode.init(head, strings, allocator);
-                    sub_nodes.append(res.@"0");
+                    const res = try StructNode.init(head, strings, allocator);
+                    try sub_nodes.append(allocator, res.@"0");
                     head = res.@"1";
                 } else if (token == FDT_END_NODE) {
                     break;
@@ -127,19 +127,20 @@ pub const Fdt = struct {
     const Strings = struct {
         data: [*]const u8,
         fn get(self: *const Strings, offset: usize) []const u8 {
-            return std.mem.span(
-                @ptrCast(self.data + offset)
-            );
+            const ptr: [*:0]const u8 = @ptrCast(self.data + offset);
+            return std.mem.span(ptr);
         }
     };
 
     header: Header,
     root: StructNode,
 
-    pub fn init(bytes: [*]const u8, allocator: std.mem.Allocator) Fdt {
+    pub fn init(bytes: [*]const u8, allocator: std.mem.Allocator) !Fdt {
         const header = Header.fromBytes(bytes);
         const strings = Strings {.data = bytes + header.off_dt_strings};
-        const root = StructNode.init(@ptrCast(bytes + header.off_dt_struct), &strings, allocator);
+
+        const struct_ptr: [*]const u32 = @ptrCast(@alignCast(bytes + header.off_dt_struct));
+        const root = try StructNode.init(struct_ptr, &strings, allocator);
 
         return Fdt {
             .header = header,

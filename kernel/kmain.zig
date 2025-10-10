@@ -8,10 +8,25 @@ export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
 
 const std = @import("std");
 const sbi = @import("sbi.zig");
+const fdt = @import("fdt.zig");
 
 /// rest of setup for the boot hart
-export fn kmain(_: u64, _: [*]const u8) noreturn {
+export fn kmain(_: u64, dtb: [*]const u8) noreturn {
     clearBss();
+
+    var fa = std.heap.FixedBufferAllocator.init(getHeapBuffer());
+    const allocator = fa.allocator();
+
+    const device_tree = fdt.Fdt.init(dtb, allocator) catch {
+        _ = sbi.debugPrint("BAD");
+        stop();
+    };
+
+    if (device_tree.header.verify()) {
+        _ = sbi.debugPrint("Verified");
+    }
+
+
     stop();
 }
 
