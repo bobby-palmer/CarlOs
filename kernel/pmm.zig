@@ -9,22 +9,34 @@ pub const MemoryBlock = struct {
     size: u64,
 }; // MemoryBlock
 
-var base_page: u64 = undefined;
-var bitmap: []u64 = undefined;
+// normalize pages relative to ram start address
+var base_page: u64 = undefined; 
 
+// bit array where 1 means free and 0 means taken page
+var bitmap: []u64 = undefined; 
+
+// return nearest page starting on or after address
 fn pageUp(address: u64) u64 {
     return (address >> PAGE_ORD) + 
-        if (address & (PAGE_SIZE - 1) > 0) {
+        if (address % PAGE_SIZE > 0) {
             1;
         } else {
             0;
         };
 }
 
+// return nearest page staring on or before address
 fn pageDown(address: u64) u64 {
     return address >> PAGE_ORD;
 }
 
+const PpmError = error {
+    InvalidAddress,
+    DoubleFree,
+}; // PpmError
+
+/// Initialize physical memory manager
+// TODO make this return error on failure
 pub fn init(ram: []const MemoryBlock, reserved: []const MemoryBlock) void {
 
     if (ram.len == 0) {
@@ -34,6 +46,7 @@ pub fn init(ram: []const MemoryBlock, reserved: []const MemoryBlock) void {
     var min_page: u64 = pageDown(ram[0].address);
     var max_page: u64 = pageUp(ram[0].address + ram[0].size);
 
+    // get range of addresses we need to track
     for (ram) |block| {
         min_page = @min(min_page, pageDown(block.address));
         max_page = @max(max_page, pageUp(block.address + block.size));
@@ -41,6 +54,7 @@ pub fn init(ram: []const MemoryBlock, reserved: []const MemoryBlock) void {
 
     var max_reserved_page = min_page;
 
+    // get highest reserved block end
     for (reserved) |block| {
         max_reserved_page = @max(max_reserved_page, pageUp(block.address + block.size));
     }
@@ -57,7 +71,7 @@ pub fn init(ram: []const MemoryBlock, reserved: []const MemoryBlock) void {
         const r = pageDown(block.address + block.size);
 
         while (l < r) {
-            setFree(l);
+            // TODO set free
             l += 1;
         }
     }
@@ -67,24 +81,8 @@ pub fn init(ram: []const MemoryBlock, reserved: []const MemoryBlock) void {
         const r = pageUp(block.address + block.size);
 
         while (l < r) {
-            setTaken(l);
+            // TODO set taken
             l += 1;
         }
     }
 } // init(...)
-
-fn setFree(page: u64) void {
-    const adj = page - base_page;
-
-    const idx = adj / 64;
-    const bidx = adj % 64;
-    bitmap[idx] |= (1 << bidx);
-} // setFree(...)
-
-fn setTaken(page: u64) void {
-    const adj = page - base_page;
-
-    const idx = adj / 64;
-    const bidx = adj % 64;
-    bitmap[idx] &= ~(1 << bidx);
-} // setTaken(...)
