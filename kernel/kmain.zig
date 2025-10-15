@@ -11,24 +11,9 @@ const std = @import("std");
 const sbi = @import("sbi.zig");
 const fdt = @import("fdt.zig");
 
-var early_heap: [0x100000] u8 = undefined;
-
 /// rest of setup for the boot hart
-export fn kmain(_: u64, dtb: [*]const u8) noreturn {
+export fn kmain(_: u64, _: [*]const u64) noreturn {
     clearBss(); // Must do this first!!!
-
-    var fa = std.heap.FixedBufferAllocator.init(&early_heap);
-    const allocator = fa.allocator();
-
-    const device_tree = fdt.Fdt.init(dtb, allocator) catch {
-        _ = sbi.debugPrint("Allocator failure!\n");
-        stop();
-    };
-
-    if (!device_tree.header.verify()) {
-        _ = sbi.debugPrint("Cannot verify fdt header!\n");
-        stop();
-    }
 
     _ = sbi.debugPrint("GOOD!");
 

@@ -1,185 +1,203 @@
+/// Fdt parser following https://devicetree-specification.readthedocs.io/en/stable/flattened-format.html
+const Fdt = @This();
+
 const std = @import("std");
 
-pub const Fdt = struct {
+header: Header,
+root: StructNode,
+mem_rsv_map: std.ArrayList(MemoryReservation),
 
-    pub const Header = extern struct {
-        magic: u32,
-        totalsize: u32,
-        off_dt_struct: u32,
-        off_dt_strings: u32,
-        off_mem_rsvmap: u32,
-        version: u32,
-        last_comp_version: u32,
-        boot_cpuid_phys: u32,
-        size_dt_strings: u32,
-        size_dt_struct: u32,
+/// Parse fdt
+pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !Fdt {
+    const header = Header.from_fdt(fdt);
 
-        fn fromBytes(bytes: [*]const u8) Header {
-            var result: Header = undefined;
-            const byte_slice = bytes[0..@sizeOf(Header)];
-
-            std.mem.copyForwards(u8, std.mem.asBytes(&result), byte_slice);
-
-            inline for (std.meta.fields(Header)) |field| {
-                @field(result, field.name) = std.mem.bigToNative(
-                    u32, 
-                    @field(result, field.name)
-                );
-            }
-
-            return result;
-        }
-
-        /// Return true if header is valid
-        pub fn verify(self: *const Header) bool {
-            return self.magic == 0xd00dfeed;
-        }
+    const strings = Strings {
+        .bytes = @as([*]const u8, @ptrCast(fdt)) + header.off_dt_strings
     };
 
-    pub const StructNode = struct {
-        const FDT_BEGIN_NODE: u32 = 0x00000001;
-        const FDT_END_NODE: u32 = 0x00000002;
-        const FDT_PROP: u32 = 0x00000003;
-        const FDT_NOP: u32 = 0x00000004;
-        const FDT_END: u32 = 0x00000009;
+    const words = @as([*]const u32, @ptrCast(fdt)) + 
+        header.off_dt_struct / @sizeOf(u32);
+    const root, _ = try StructNode.parse(words, &strings, alloc);
 
-        pub const PropNode = struct {
-            name: []const u8,
-            value: []const u8,
+    var mem_rsv_head = fdt + header.off_mem_rsvmap / @sizeOf(u64);
+    var mem_rsv_lst = try std.ArrayList(MemoryReservation).initCapacity(alloc, 10);
 
-            fn fromWords(words: [*]const u32, strings: *const Strings) struct {PropNode, [*]const u32} {
-                const len = read(words + 1);
-                const nameoff = read(words + 2);
+    while (true) {
+        const addr = std.mem.bigToNative(u64, mem_rsv_head.*);
+        mem_rsv_head += 1;
+        const size = std.mem.bigToNative(u64, mem_rsv_head.*);
+        mem_rsv_head += 1;
 
-                const value_ptr: [*]const u8 = @ptrCast(words + 3);
-                const value = value_ptr[0..len];
+        if (addr == 0 and size == 0) break;
 
-                const end: [*]const u32 = @ptrFromInt(
-                    std.mem.alignForward(usize, @intFromPtr(value.ptr + value.len), @alignOf(u32))
-                );
+        _ = try mem_rsv_lst.append(alloc, MemoryReservation { 
+            .address = addr, 
+            .size = size 
+        });
+    }
 
-                const node = PropNode {
-                    .name = strings.get(nameoff),
-                    .value = value,
-                };
+    return Fdt {
+        .header = header,
+        .root = root,
+        .mem_rsv_map = mem_rsv_lst
+    };
+}
 
-                return .{ node, end };
+/// Free allocated memory used for parsing
+pub fn deinit(self: *const Fdt, allocator: std.mem.Allocator) void {
+    self.root.deinit(allocator);
+    self.mem_rsv_map.deinit(allocator);
+}
 
-            }
-        };
+pub const Header = extern struct {
+    magic: u32,
+    totalsize: u32,
+    off_dt_struct: u32,
+    off_dt_strings: u32,
+    off_mem_rsvmap: u32,
+    version: u32,
+    last_comp_version: u32,
+    boot_cpuid_phys: u32,
+    size_dt_strings: u32,
+    size_dt_struct: u32,
 
-        name: []const u8,
-        props: std.ArrayList(PropNode),
-        sub_nodes: std.ArrayList(StructNode),
+    fn from_fdt(fdt: [*]const u64) Header {
+        var header = @as(*const Header, @ptrCast(@alignCast(fdt))).*;
 
-        fn read(word: [*]const u32) u32 {
-            return std.mem.bigToNative(u32, word[0]);
+        inline for (std.meta.fields(Header)) |field| {
+            @field(header, field.name) = 
+                std.mem.bigToNative(u32, @field(header, field.name));
         }
 
-        fn init(words: [*]const u32, strings: *const Strings, allocator: std.mem.Allocator) !struct {StructNode, [*]const u32} {
-            var head = words;
+        return header;
+    }
 
-            while (read(head) != FDT_BEGIN_NODE) {
-                head += 1;
-            }
+    fn isVerified(self: *const Header) bool {
+        return self.magic == 0xd00dfeed;
+    }
+
+}; // Header
+
+pub const StructNode = struct {
+
+    const FDT_BEGIN_NODE: u32 = 0x1;
+    const FDT_END_NODE: u32 = 0x2;
+    const FDT_PROP: u32 = 0x3;
+    const FDT_NOP: u32 = 0x4;
+    const FDT_END: u32 = 0x9;
+
+    pub const PropNode = struct {
+        name: []const u8,
+        value: []const u8,
+    };
+
+    name: []const u8,
+    props: std.ArrayList(PropNode),
+    sub_nodes: std.ArrayList(StructNode),
+
+    fn parse(
+        words: [*]const u32, 
+        strings: *const Strings, 
+        allocator: std.mem.Allocator
+    ) !struct {StructNode, [*]const u32} {
+
+        var head = words;
+
+        while (std.mem.bigToNative(u32, head.*) != FDT_BEGIN_NODE) {
+            head += 1;
+        }
+
+        head += 1; // Move to start of name
+
+        const cstr: [*:0]const u8 = @ptrCast(head);
+        const name: []const u8 = std.mem.span(cstr);
+
+        const name_len = name.len + 1; // include null
+
+        head += if (name_len % 4 == 0) {
+            name_len / 4;
+        } else {
+            name_len / 4 + 1;
+        }; // next u32 after word end
+
+        var props = try std.ArrayList(PropNode).initCapacity(allocator, 10);
+        var sub_nodes = try std.ArrayList(StructNode).initCapacity(allocator, 10);
+
+        while (true) {
+            const token = std.mem.bigToNative(u32, head.*);
 
             head += 1;
 
-            const name_ptr: [*:0]const u8 = @ptrCast(head);
-            const name: []const u8 = std.mem.span(name_ptr);
-
-            head = @ptrFromInt(
-                std.mem.alignForward(usize, @intFromPtr(name.ptr + name.len + 1), @alignOf(u32))
-            );
-
-            var props = try std.ArrayList(PropNode).initCapacity(allocator, 10);
-            var sub_nodes = try std.ArrayList(StructNode).initCapacity(allocator, 10);
-
-            while (true) {
-                const token = read(head);
-
-                if (token == FDT_NOP) {
-                    head += 1;
-                }
-                else if (token == FDT_PROP) {
-                    const res = PropNode.fromWords(head, strings);
-                    try props.append(allocator, res.@"0");
-                    head = res.@"1";
-                } else if (token == FDT_BEGIN_NODE) {
-                    const res = try StructNode.init(head, strings, allocator);
-                    try sub_nodes.append(allocator, res.@"0");
-                    head = res.@"1";
-                } else if (token == FDT_END_NODE) {
-                    break;
-                }
+            if (token == FDT_NOP) {
+                continue;
             }
 
-            const node = StructNode {
+            else if (token == FDT_PROP) {
+                const len = std.mem.bigToNative(u32, head.*);
+                head += 1;
+
+                const nameoff = std.mem.bigToNative(u32, head.*);
+                head += 1;
+
+                const prop_name = strings.offToStr(nameoff);
+
+                const value = @as([*]const u8, @ptrCast(head))[0..len];
+                head += if (len % 4 == 0) len / 4 else len / 4 + 1;
+
+                _ = try props.append(allocator, .{ 
+                    .name = prop_name, 
+                    .value = value 
+                });
+            }
+
+            else if (token == FDT_BEGIN_NODE) {
+                const sub_node, const end = try 
+                    StructNode.parse(head, strings, allocator);
+                _ = try sub_nodes.append(allocator, sub_node);
+                head = end;
+            } 
+
+            else if (token == FDT_END) {
+                break;
+            }
+
+            else {
+                unreachable;
+            }
+        }
+
+        return .{
+            StructNode {
                 .name = name,
                 .props = props,
                 .sub_nodes = sub_nodes,
-            };
-
-            return .{ node, head + 1};
-        }
-
-        fn deinit(self: *const StructNode, allocator: std.mem.Allocator) void {
-
-            for (self.sub_nodes.items) |sub_node| {
-                sub_node.deinit(allocator);
-            }
-
-            self.sub_nodes.deinit(allocator);
-            self.props.deinit(allocator);
-        }
-    };
-
-    const Strings = struct {
-        data: [*]const u8,
-        fn get(self: *const Strings, offset: usize) []const u8 {
-            const ptr: [*:0]const u8 = @ptrCast(self.data + offset);
-            return std.mem.span(ptr);
-        }
-    };
-
-    pub const MemRsvEntry = struct {
-        address: u64,
-        size: u64,
-    };
-
-    header: Header,
-    root: StructNode,
-    mem_rsv_map: std.ArrayList(MemRsvEntry),
-
-    pub fn init(bytes: [*]const u8, allocator: std.mem.Allocator) !Fdt {
-        const header = Header.fromBytes(bytes);
-        const strings = Strings {.data = bytes + header.off_dt_strings};
-
-        const struct_ptr: [*]const u32 = @ptrCast(@alignCast(bytes + header.off_dt_struct));
-        const root = try StructNode.init(struct_ptr, &strings, allocator);
-
-        var rsv_ptr: [*]const u64 = @ptrCast(@alignCast(bytes + header.off_mem_rsvmap));
-        var mem_rsv_map = try std.ArrayList(MemRsvEntry).initCapacity(allocator, 10);
-
-        while (rsv_ptr[0] != 0 or rsv_ptr[1] != 0) {
-            const entry = MemRsvEntry {
-                .address = std.mem.bigToNative(u64, rsv_ptr[0]),
-                .size = std.mem.bigToNative(u64, rsv_ptr[1]),
-            };
-
-            try mem_rsv_map.append(allocator, entry);
-            rsv_ptr += 2;
-        }
-
-        return Fdt {
-            .header = header,
-            .root = root.@"0",
-            .mem_rsv_map = mem_rsv_map,
+            },
+            head,
         };
     }
 
-    pub fn deinit(self: *const Fdt, allocator: std.mem.Allocator) void {
-        self.root.deinit(allocator);
-        self.mem_rsv_map.deinit(allocator);
+    fn deinit(self: *const StructNode, allocator: std.mem.Allocator) void {
+        for (self.sub_nodes.items) |sub_node| {
+            sub_node.deinit(allocator);
+        }
+
+        self.props.deinit(allocator);
+        self.sub_nodes.deinit(allocator);
     }
-};
+
+}; // StructNode
+
+const Strings = struct {
+    bytes: [*]const u8,
+
+    fn offToStr(self: *const Strings, offset: usize) []const u8 {
+        const ptr: [*:0]const u8 = @ptrCast(self.bytes + offset);
+        return std.mem.span(ptr);
+    }
+
+}; // Strings
+
+pub const MemoryReservation = struct {
+    address: u64,
+    size: u64,
+}; // MemoryReservation
