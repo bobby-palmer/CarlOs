@@ -37,15 +37,19 @@ export fn boot2(_: u64, fdt: [*]const u64) noreturn {
     };
 
     if (!device_tree.header.isVerified()) {
-        _ = sbi.debugPrint("Bad header\n");
-    } else {
-        _ = sbi.debugPrint("Good header\n");
+        @panic("Bad fdt header!");
+    }
+
+    for (device_tree.root.sub_nodes.items) |node| {
+        if (std.mem.eql(u8, node.getUnitName(), "memory")) {
+            _ = sbi.debugPrint("Found memory node\n");
+        }
     }
 
     halt();
 }
 
-/// Set global panic handler
+/// Simple global panic handler to print out a message
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     _ = sbi.debugPrint("\n\nKERNEL PANIC: ");
     _ = sbi.debugPrint(message);

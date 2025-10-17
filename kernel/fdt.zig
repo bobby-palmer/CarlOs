@@ -95,6 +95,26 @@ pub const StructNode = struct {
     props: std.ArrayList(PropNode),
     sub_nodes: std.ArrayList(StructNode),
 
+    /// return value of property if it exists in this node
+    pub fn getProp(self: *const StructNode, prop_name: []const u8) ?[]const u8 {
+        for (self.props.items) |prop| {
+            if (std.mem.eql(u8, prop.name, prop_name)) {
+                return prop.value;
+            }
+        }
+
+        return null;
+    }
+
+    /// Return name string after trimming '@' and suffix if present
+    pub fn getUnitName(self: *const StructNode) []const u8 {
+        if (std.mem.indexOfScalar(u8, self.name, '@')) |idx| {
+            return self.name[0..idx];
+        } else {
+            return self.name;
+        }
+    }
+
     fn parse(
         words: [*]const u32, 
         strings: *const Strings, 
@@ -171,7 +191,7 @@ pub const StructNode = struct {
             },
             head,
         };
-    }
+    } // parse(...)
 
     fn deinit(self: *const StructNode, allocator: std.mem.Allocator) void {
         for (self.sub_nodes.items) |sub_node| {
@@ -180,7 +200,7 @@ pub const StructNode = struct {
 
         self.props.deinit(allocator);
         self.sub_nodes.deinit(allocator);
-    }
+    } // deinit(...)
 
 }; // StructNode
 
@@ -190,7 +210,7 @@ const Strings = struct {
     fn offToStr(self: *const Strings, offset: usize) []const u8 {
         const ptr: [*:0]const u8 = @ptrCast(self.bytes + offset);
         return std.mem.span(ptr);
-    }
+    } // offToStr(...)
 
 }; // Strings
 
