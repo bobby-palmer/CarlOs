@@ -9,7 +9,7 @@ export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
         \\ mv sp, %[stack_start]
         \\ li t0, %[stack_size]
         \\ add t0, sp, sp
-        \\ j boot2
+        \\ j boot
         :
         : [stack_start] "r" (&BOOT_STACK),
           [stack_size] "i" (BOOT_STACK_SIZE)
@@ -26,7 +26,7 @@ const sbi = @import("sbi.zig");
 const Fdt = @import("fdt.zig");
 
 /// rest of setup for the boot hart
-export fn boot2(_: u64, fdt: [*]const u64) noreturn {
+export fn boot(_: u64, fdt: [*]const u64) noreturn {
     clearBss(); // Must do this first, do not move this
 
     var fa = std.heap.FixedBufferAllocator.init(&EARLY_HEAP);
@@ -40,9 +40,12 @@ export fn boot2(_: u64, fdt: [*]const u64) noreturn {
         @panic("Bad fdt header!");
     }
 
+    const address_cells = device_tree.root.getProp("#address-cells").getU32();
+    const size_cells = device_tree.root.getProp("#size-cells").getU32();
+
     for (device_tree.root.sub_nodes.items) |node| {
         if (std.mem.eql(u8, node.getUnitName(), "memory")) {
-            _ = sbi.debugPrint("Found memory node\n");
+            const reg = node.getProp("reg");
         }
     }
 
@@ -51,9 +54,20 @@ export fn boot2(_: u64, fdt: [*]const u64) noreturn {
 
 /// Simple global panic handler to print out a message
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    _ = sbi.debugPrint("\n\nKERNEL PANIC: ");
+    _ = sbi.debugPrint("\n\n");
+    _ = sbi.debugPrint("\x1b[31m"); // Set color to red
+    
+    _ = sbi.debugPrint("===================\n");
+    _ = sbi.debugPrint("|  KERNEL PANIC:  |\n");
+    _ = sbi.debugPrint("===================\n");
+
+    _ = sbi.debugPrint("\x1b[0m"); // reset color
+    _ = sbi.debugPrint("\n");
+
+    _ = sbi.debugPrint("Error: ");
     _ = sbi.debugPrint(message);
     _ = sbi.debugPrint("\n");
+
     halt(); 
 }
 
