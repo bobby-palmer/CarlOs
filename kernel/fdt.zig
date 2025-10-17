@@ -103,6 +103,13 @@ pub const StructNode = struct {
             const be = std.mem.bytesAsValue(u64, self.value.ptr);
             return std.mem.bigToNative(u64, be);
         }
+
+        /// Return property value as string slice (without null terminator)
+        pub fn getStr(self: *const PropNode) []const u8 {
+            std.debug.assert(self.value.len > 0);
+            std.debug.assert(self.value[self.value.len - 1] == 0);
+            return self.value[0..self.value.len - 1];
+        }
     };
 
     name: []const u8,
