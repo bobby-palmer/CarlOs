@@ -1,27 +1,60 @@
-/// fn for the boot hart to get tmp stack
-/// TODO change this to use static array in zig code instead of linker
-export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
+/// 64 KB
+const BOOT_STACK_SIZE: usize = 64 * (1 << 10);
+/// temp stack for booting
+var BOOT_STACK: [BOOT_STACK_SIZE]u8 align(16) = undefined;
+
+/// Setup boot stack for boot hart and jump to boot2
+export fn _boot1() linksection(".text.boot") callconv(.naked) noreturn {
     asm volatile (
-        \\ la sp, __stack_top
-        \\ j kmain
+        \\ mv sp, %[stack_start]
+        \\ li t0, %[stack_size]
+        \\ add t0, sp, sp
+        \\ j boot2
+        :
+        : [stack_start] "r" (&BOOT_STACK),
+          [stack_size] "i" (BOOT_STACK_SIZE)
     );
 }
 
+/// 1MB
+const EARLY_HEAP_SIZE: usize = 1 << 20;
+/// Early heap for boot sequence
+var EARLY_HEAP: [EARLY_HEAP_SIZE]u8 align(16) = undefined;
+
 const std = @import("std");
 const sbi = @import("sbi.zig");
-const fdt = @import("fdt.zig");
+const Fdt = @import("fdt.zig");
 
 /// rest of setup for the boot hart
-export fn kmain(_: u64, _: [*]const u64) noreturn {
-    clearBss(); // Must do this first!!!
+export fn boot2(_: u64, fdt: [*]const u64) noreturn {
+    clearBss(); // Must do this first, do not move this
 
-    _ = sbi.debugPrint("GOOD!");
+    var fa = std.heap.FixedBufferAllocator.init(&EARLY_HEAP);
+    const early_allocator = fa.allocator();
 
-    stop();
+    const device_tree: Fdt = Fdt.parse(fdt, early_allocator) catch |err| {
+        @panic(@errorName(err));
+    };
+
+    if (!device_tree.header.isVerified()) {
+        _ = sbi.debugPrint("Bad header\n");
+    } else {
+        _ = sbi.debugPrint("Good header\n");
+    }
+
+    halt();
+}
+
+/// Set global panic handler
+pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
+    _ = sbi.debugPrint("\n\nKERNEL PANIC: ");
+    _ = sbi.debugPrint(message);
+    _ = sbi.debugPrint("\n");
+    halt(); 
 }
 
 /// Halt cpu
-fn stop() noreturn {
+fn halt() noreturn {
     while (true) {
         asm volatile ("wfi");
     }

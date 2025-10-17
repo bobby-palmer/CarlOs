@@ -3,8 +3,7 @@ MEMORY {
 }
 
 SECTIONS {
-
-  __start = .;
+  __kstart = .;
 
   .text.boot : {
     *(.text.boot)
@@ -28,12 +27,5 @@ SECTIONS {
       __bss_end = .;
   } > kernel_space
 
-  /* TODO remove this later */
-  .stack : ALIGN(CONSTANT(MAXPAGESIZE)) {
-      . = . + 0x10000; /* 64KB stack size */
-      __stack_top = .;
-  } > kernel_space
-
-  __end = .;
-
+  __kend = .;
 }

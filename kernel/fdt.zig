@@ -23,9 +23,9 @@ pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !Fdt {
     var mem_rsv_lst = try std.ArrayList(MemoryReservation).initCapacity(alloc, 10);
 
     while (true) {
-        const addr = std.mem.bigToNative(u64, mem_rsv_head.*);
+        const addr = std.mem.bigToNative(u64, mem_rsv_head[0]);
         mem_rsv_head += 1;
-        const size = std.mem.bigToNative(u64, mem_rsv_head.*);
+        const size = std.mem.bigToNative(u64, mem_rsv_head[0]);
         mem_rsv_head += 1;
 
         if (addr == 0 and size == 0) break;
@@ -72,7 +72,7 @@ pub const Header = extern struct {
         return header;
     }
 
-    fn isVerified(self: *const Header) bool {
+    pub fn isVerified(self: *const Header) bool {
         return self.magic == 0xd00dfeed;
     }
 
@@ -103,7 +103,7 @@ pub const StructNode = struct {
 
         var head = words;
 
-        while (std.mem.bigToNative(u32, head.*) != FDT_BEGIN_NODE) {
+        while (std.mem.bigToNative(u32, head[0]) != FDT_BEGIN_NODE) {
             head += 1;
         }
 
@@ -114,29 +114,25 @@ pub const StructNode = struct {
 
         const name_len = name.len + 1; // include null
 
-        head += if (name_len % 4 == 0) {
-            name_len / 4;
-        } else {
-            name_len / 4 + 1;
-        }; // next u32 after word end
+        head += if (name_len % 4 == 0) name_len / 4 else name_len / 4 + 1;
 
         var props = try std.ArrayList(PropNode).initCapacity(allocator, 10);
         var sub_nodes = try std.ArrayList(StructNode).initCapacity(allocator, 10);
 
         while (true) {
-            const token = std.mem.bigToNative(u32, head.*);
-
-            head += 1;
+            const token = std.mem.bigToNative(u32, head[0]);
 
             if (token == FDT_NOP) {
-                continue;
+                head += 1;
             }
 
             else if (token == FDT_PROP) {
-                const len = std.mem.bigToNative(u32, head.*);
                 head += 1;
 
-                const nameoff = std.mem.bigToNative(u32, head.*);
+                const len = std.mem.bigToNative(u32, head[0]);
+                head += 1;
+
+                const nameoff = std.mem.bigToNative(u32, head[0]);
                 head += 1;
 
                 const prop_name = strings.offToStr(nameoff);
@@ -157,7 +153,8 @@ pub const StructNode = struct {
                 head = end;
             } 
 
-            else if (token == FDT_END) {
+            else if (token == FDT_END_NODE) {
+                head += 1;
                 break;
             }
 
