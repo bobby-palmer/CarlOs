@@ -24,6 +24,7 @@ var EARLY_HEAP: [EARLY_HEAP_SIZE]u8 align(16) = undefined;
 const std = @import("std");
 const sbi = @import("sbi.zig");
 const Fdt = @import("fdt.zig");
+const Pmm = @import("pmm.zig");
 
 /// rest of setup for the boot hart
 export fn boot(_: u64, fdt: [*]const u64) noreturn {
@@ -50,42 +51,61 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
             |prop| std.mem.readInt(u32, prop[0..4], .big)
         else 1;
 
+    var ram = std.ArrayList(Pmm.MemoryRegion).initCapacity(early_allocator, 3) catch |err| {
+        @panic(@errorName(err));
+    };
+
     for (device_tree.root.sub_nodes.items) |node| {
         if (std.mem.eql(u8, node.getUnitName(), "memory")) {
             const reg = node.getProp("reg") orelse unreachable;
             var i: usize = 0;
 
             while (i < reg.len) {
-                _ = std.mem.readVarInt(u64, reg[i..i + address_bytes], .big);
+                const base_addr = std.mem.readVarInt(u64, reg[i..i + address_bytes], .big);
                 i += address_bytes;
-                _ = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
+                const length = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
                 i += size_bytes;
+
+                ram.append(early_allocator, .{
+                    .base_addr = base_addr,
+                    .length = length
+                }) catch |err| {
+                    @panic(@errorName(err));
+                };
             }
         }
     }
 
-    _ = sbi.DebugConsole.consoleWrite("GOOD!\n") catch unreachable;
-    _ = sbi.DebugConsole.consoleWrite("GOOD!\n") catch unreachable;
+    var reserved = std.ArrayList(Pmm.MemoryRegion).initCapacity(early_allocator, 3) catch |err| {
+        @panic(@errorName(err));
+    };
+
+    for (device_tree.mem_rsv_map.items) |block| {
+        reserved.append(early_allocator, .{
+            .base_addr = block.address,
+            .length = block.size,
+        }) catch |err| {
+            @panic(@errorName(err));
+        };
+    }
+
+    reserved.append(early_allocator, .{
+        .base_addr = @intFromPtr(&__kstart),
+        .length = @intFromPtr(&__kend) - @intFromPtr(&__kstart)
+    }) catch {
+        @panic("Ran out of memory");
+    };
+
+    Pmm.init(ram.items, reserved.items);
+
+    _ = sbi.DebugConsole.consoleWrite("DONE!\n") catch unreachable;
 
     halt();
 }
 
 /// Simple global panic handler to print out a message
+// TODO make this nicer
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    // _ = sbi.debugPrint("\n\n");
-    // _ = sbi.debugPrint("\x1b[31m"); // Set color to red
-    //
-    // _ = sbi.debugPrint("===================================\n");
-    // _ = sbi.debugPrint("|           KERNEL PANIC:         |\n");
-    // _ = sbi.debugPrint("===================================\n");
-    //
-    // _ = sbi.debugPrint("\x1b[0m"); // reset color
-    // _ = sbi.debugPrint("\n");
-    //
-    // _ = sbi.debugPrint("Error: ");
-    // _ = sbi.debugPrint(message);
-    // _ = sbi.debugPrint("\n");
-
     _ = sbi.DebugConsole.consoleWrite(message) catch {};
     halt(); 
 }
@@ -109,3 +129,5 @@ fn clearBss() void {
     @memset(bss_slice, 0);
 }
 
+extern var __kstart: u8;
+extern var __kend: u8;
