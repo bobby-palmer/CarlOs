@@ -56,17 +56,10 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
             var i: usize = 0;
 
             while (i < reg.len) {
-                const address = std.mem.readVarInt(u64, reg[i..i + address_bytes], .big);
+                _ = std.mem.readVarInt(u64, reg[i..i + address_bytes], .big);
                 i += address_bytes;
-                const size = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
+                _ = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
                 i += size_bytes;
-
-                // DEBUG PRINTING get rid of this when implemented
-                var buf: [64]u8 = undefined;
-                const f1 = std.fmt.bufPrint(&buf, "Addr: {x}\n", .{address}) catch unreachable;
-                _ = sbi.debugPrint(f1);
-                const f2 = std.fmt.bufPrint(&buf, "Size: {x}\n", .{size}) catch unreachable;
-                _ = sbi.debugPrint(f2);
             }
         }
     }
@@ -79,9 +72,9 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
     _ = sbi.debugPrint("\n\n");
     _ = sbi.debugPrint("\x1b[31m"); // Set color to red
     
-    _ = sbi.debugPrint("===================\n");
-    _ = sbi.debugPrint("|  KERNEL PANIC:  |\n");
-    _ = sbi.debugPrint("===================\n");
+    _ = sbi.debugPrint("===================================\n");
+    _ = sbi.debugPrint("|           KERNEL PANIC:         |\n");
+    _ = sbi.debugPrint("===================================\n");
 
     _ = sbi.debugPrint("\x1b[0m"); // reset color
     _ = sbi.debugPrint("\n");
