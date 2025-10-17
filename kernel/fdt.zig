@@ -89,27 +89,6 @@ pub const StructNode = struct {
     pub const PropNode = struct {
         name: []const u8,
         value: []const u8,
-
-        /// return property value as u32
-        pub fn getU32(self: *const PropNode) u32 {
-            std.debug.assert(self.value.len == @sizeOf(u32));
-            const be = std.mem.bytesAsValue(u32, self.value.ptr);
-            return std.mem.bigToNative(u32, be);
-        }
-
-        /// Return property value as u64
-        pub fn getU64(self: *const PropNode) u64 {
-            std.debug.assert(self.value.len == @sizeOf(u64));
-            const be = std.mem.bytesAsValue(u64, self.value.ptr);
-            return std.mem.bigToNative(u64, be);
-        }
-
-        /// Return property value as string slice (without null terminator)
-        pub fn getStr(self: *const PropNode) []const u8 {
-            std.debug.assert(self.value.len > 0);
-            std.debug.assert(self.value[self.value.len - 1] == 0);
-            return self.value[0..self.value.len - 1];
-        }
     };
 
     name: []const u8,
@@ -117,23 +96,14 @@ pub const StructNode = struct {
     sub_nodes: std.ArrayList(StructNode),
 
     /// return value of property if it exists in this node
-    pub fn getPropIfExists(self: *const StructNode, prop_name: []const u8) ?PropNode {
+    pub fn getProp(self: *const StructNode, prop_name: []const u8) ?[]const u8 {
         for (self.props.items) |prop| {
             if (std.mem.eql(u8, prop.name, prop_name)) {
-                return prop;
+                return prop.value;
             }
         }
 
         return null;
-    }
-
-    /// Return the value of prop or panic if doesnt exist
-    pub fn getProp(self: *const StructNode, prop_name: []const u8) PropNode {
-        if (self.getPropIfExists(prop_name)) |prop| {
-            return prop;
-        } else {
-            @panic("Property doesnt exist on this node");
-        }
     }
 
     /// Return name string after trimming '@' and suffix if present

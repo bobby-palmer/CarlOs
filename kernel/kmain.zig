@@ -40,12 +40,33 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
         @panic("Bad fdt header!");
     }
 
-    const address_cells = device_tree.root.getProp("#address-cells").getU32();
-    const size_cells = device_tree.root.getProp("#size-cells").getU32();
+    const address_bytes = @sizeOf(u32) *
+        if (device_tree.root.getProp("#address-cells")) 
+            |prop| std.mem.readInt(u32, prop[0..4], .big)
+        else 2;
+
+    const size_bytes = @sizeOf(u32) *
+        if (device_tree.root.getProp("#size-cells")) 
+            |prop| std.mem.readInt(u32, prop[0..4], .big)
+        else 1;
 
     for (device_tree.root.sub_nodes.items) |node| {
         if (std.mem.eql(u8, node.getUnitName(), "memory")) {
-            const reg = node.getProp("reg");
+            const reg = node.getProp("reg") orelse unreachable;
+            var i: usize = 0;
+
+            while (i < reg.len) {
+                const address = std.mem.readVarInt(u64, reg[i..i + address_bytes], .big);
+                i += address_bytes;
+                const size = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
+                i += size_bytes;
+
+                var buf: [64]u8 = undefined;
+                const f1 = std.fmt.bufPrint(&buf, "Addr: {x}\n", .{address}) catch unreachable;
+                _ = sbi.debugPrint(f1);
+                const f2 = std.fmt.bufPrint(&buf, "Size: {x}\n", .{size}) catch unreachable;
+                _ = sbi.debugPrint(f2);
+            }
         }
     }
 
