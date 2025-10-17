@@ -87,6 +87,8 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
 }
 
 fn setPageTaken(page: u64) void {
+    if (page < base_page) return;
+
     const adj = page - base_page;
     const word_idx = adj / 64;
     const bit_idx = adj % 64;
@@ -95,6 +97,8 @@ fn setPageTaken(page: u64) void {
 }
 
 fn setPageFree(page: u64) void {
+    if (page < base_page) return;
+
     const adj = page - base_page;
     const word_idx = adj / 64;
     const bit_idx = adj % 64;
