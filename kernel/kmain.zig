@@ -64,25 +64,29 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
         }
     }
 
+    _ = sbi.DebugConsole.consoleWrite("GOOD!\n") catch unreachable;
+    _ = sbi.DebugConsole.consoleWrite("GOOD!\n") catch unreachable;
+
     halt();
 }
 
 /// Simple global panic handler to print out a message
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    _ = sbi.debugPrint("\n\n");
-    _ = sbi.debugPrint("\x1b[31m"); // Set color to red
-    
-    _ = sbi.debugPrint("===================================\n");
-    _ = sbi.debugPrint("|           KERNEL PANIC:         |\n");
-    _ = sbi.debugPrint("===================================\n");
+    // _ = sbi.debugPrint("\n\n");
+    // _ = sbi.debugPrint("\x1b[31m"); // Set color to red
+    //
+    // _ = sbi.debugPrint("===================================\n");
+    // _ = sbi.debugPrint("|           KERNEL PANIC:         |\n");
+    // _ = sbi.debugPrint("===================================\n");
+    //
+    // _ = sbi.debugPrint("\x1b[0m"); // reset color
+    // _ = sbi.debugPrint("\n");
+    //
+    // _ = sbi.debugPrint("Error: ");
+    // _ = sbi.debugPrint(message);
+    // _ = sbi.debugPrint("\n");
 
-    _ = sbi.debugPrint("\x1b[0m"); // reset color
-    _ = sbi.debugPrint("\n");
-
-    _ = sbi.debugPrint("Error: ");
-    _ = sbi.debugPrint(message);
-    _ = sbi.debugPrint("\n");
-
+    _ = sbi.DebugConsole.consoleWrite(message) catch {};
     halt(); 
 }
 
