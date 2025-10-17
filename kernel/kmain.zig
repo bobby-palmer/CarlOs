@@ -61,6 +61,7 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
                 const size = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
                 i += size_bytes;
 
+                // DEBUG PRINTING get rid of this when implemented
                 var buf: [64]u8 = undefined;
                 const f1 = std.fmt.bufPrint(&buf, "Addr: {x}\n", .{address}) catch unreachable;
                 _ = sbi.debugPrint(f1);
