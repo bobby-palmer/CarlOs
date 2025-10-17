@@ -4,7 +4,7 @@ const BOOT_STACK_SIZE: usize = 64 * (1 << 10);
 var BOOT_STACK: [BOOT_STACK_SIZE]u8 align(16) = undefined;
 
 /// Setup boot stack for boot hart and jump to boot2
-export fn _boot1() linksection(".text.boot") callconv(.naked) noreturn {
+export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
     asm volatile (
         \\ mv sp, %[stack_start]
         \\ li t0, %[stack_size]
