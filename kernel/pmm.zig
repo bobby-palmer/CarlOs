@@ -1,14 +1,15 @@
-var initialized: bool = false;
-var bitmap: []u64 = undefined;
-var base_page: u64 = undefined;
-
-const PAGE_ORD: u64 = 12;
-pub const PAGE_SIZE: usize = 1 << PAGE_ORD; // 4KB
+pub const PAGE_SIZE: usize = 0x1000; // 4KB
 
 pub const MemoryRegion = struct {
     base_addr: usize,
     length: usize,
 };
+
+var initialized: bool = false;
+var bitmap: []u64 = undefined;
+var base_page: u64 = undefined;
+
+const std = @import("std");
 
 /// Initialize bitmap and page state tracking, should only be called once
 /// and will panic if called twice
@@ -86,8 +87,75 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
     }
 }
 
+/// Allocate "count" contiguous pages
+/// and return the start address of the first page
+pub fn allocPages(count: usize) ?usize {
+    std.debug.assert(initialized);
+
+    if (count == 0) {
+        return null;
+    }
+
+    var seen: usize = 0;
+    var cur_page = base_page;
+
+    while (cur_page < endPage() and seen < count) : (cur_page += 1) {
+        if (isFree(cur_page)) {
+            seen += 1;
+        } else {
+            seen == 0;
+        }
+    }
+
+    if (seen == count) {
+        for (cur_page - count..cur_page) |page| {
+            setPageTaken(page);
+        }
+
+        return addrOfPage(cur_page - count);
+    } else {
+        return null;
+    }
+}
+
+/// Free n pages starting from base_addr
+/// base_addr must be page aligned and 
+/// pmm must be initialized
+pub fn freePages(base_addr: usize, count: usize) void {
+    std.debug.assert(initialized);
+    std.debug.assert(base_addr & (PAGE_SIZE - 1) == 0);
+
+    const page_start = pageStart(base_addr);
+
+    for (0..count) |offset| {
+        setPageFree(page_start + offset);
+    }
+}
+
+fn isFree(page: u64) bool {
+    std.debug.assert(initialized);
+    std.debug.assert(isManaged(page));
+
+    const adj = page - base_page;
+    const word_idx = adj / 64;
+    const bit_idx = adj % 64;
+
+    return (bitmap[word_idx] >> bit_idx) & 1 == 1;
+}
+
+fn endPage() u64 {
+    std.debug.assert(initialized);
+    return base_page + bitmap.len * 64;
+}
+
+fn isManaged(page: u64) bool {
+    std.debug.assert(initialized);
+    return base_page <= page and page < endPage();
+}
+
 fn setPageTaken(page: u64) void {
-    if (page < base_page) return;
+    std.debug.assert(initialized);
+    std.debug.assert(isManaged(page));
 
     const adj = page - base_page;
     const word_idx = adj / 64;
@@ -97,7 +165,8 @@ fn setPageTaken(page: u64) void {
 }
 
 fn setPageFree(page: u64) void {
-    if (page < base_page) return;
+    std.debug.assert(initialized);
+    std.debug.assert(isManaged(page));
 
     const adj = page - base_page;
     const word_idx = adj / 64;
@@ -108,7 +177,7 @@ fn setPageFree(page: u64) void {
 
 /// Return the page number that contains address
 fn pageStart(addr: usize) u64 {
-    return addr >> PAGE_ORD;
+    return addr / PAGE_SIZE;
 }
 
 /// Return first page that starts on or after addr
@@ -120,5 +189,5 @@ fn pageUp(addr: usize) u64 {
 
 /// return address of the start of given page
 fn addrOfPage(page: u64) usize {
-    return page << PAGE_ORD;
+    return page * PAGE_SIZE;
 }
