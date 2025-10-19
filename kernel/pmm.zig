@@ -46,8 +46,6 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
 
     const NUM_LWORDS = (end_ram_page - start_ram_page + 63) / 64;
 
-    // TODO check if enough room for bitmap
-
     // init bitmap with everything set to taken
 
     base_page = start_ram_page;
@@ -60,9 +58,8 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
         var idx = pageUp(block.base_addr);
         const end = pageStart(block.base_addr + block.length);
 
-        while (idx < end) {
-            setPageFree(idx);
-            idx += 1;
+        while (idx < end) : (idx += 1) {
+            if (isManaged(idx)) setPageFree(idx);
         }
     }
 
@@ -70,9 +67,8 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
         var idx = pageStart(block.base_addr);
         const end = pageUp(block.base_addr + block.length);
 
-        while (idx < end) {
-            setPageTaken(idx);
-            idx += 1;
+        while (idx < end) : (idx += 1) {
+            if (isManaged(idx)) setPageTaken(idx);
         }
     }
 
@@ -80,9 +76,8 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
         var idx = pageStart(@intFromPtr(bitmap.ptr));
         const end = pageUp(@intFromPtr(bitmap.ptr + bitmap.len));
 
-        while (idx < end) {
-            setPageTaken(idx);
-            idx += 1;
+        while (idx < end) : (idx += 1) {
+            if (isManaged(idx)) setPageTaken(idx);
         }
     }
 }
@@ -111,7 +106,6 @@ pub fn allocPages(count: usize) ?usize {
         for (cur_page - count..cur_page) |page| {
             setPageTaken(page);
         }
-
         return addrOfPage(cur_page - count);
     } else {
         return null;
