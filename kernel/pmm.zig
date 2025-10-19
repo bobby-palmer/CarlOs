@@ -104,6 +104,7 @@ pub fn allocPages(count: usize) ?usize {
 
     if (seen == count) {
         for (cur_page - count..cur_page) |page| {
+            zeroPage(page);
             setPageTaken(page);
         }
         return addrOfPage(cur_page - count);
@@ -124,6 +125,10 @@ pub fn freePages(base_addr: usize, count: usize) void {
     for (0..count) |offset| {
         setPageFree(page_start + offset);
     }
+}
+
+fn zeroPage(page: u64) void {
+    @memset(@as([*]u8, @ptrFromInt(addrOfPage(page)))[0..PAGE_SIZE], 0);
 }
 
 fn isFree(page: u64) bool {

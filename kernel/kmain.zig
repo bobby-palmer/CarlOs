@@ -41,62 +41,7 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
         @panic("Bad fdt header!");
     }
 
-    const address_bytes = @sizeOf(u32) *
-        if (device_tree.root.getProp("#address-cells")) 
-            |prop| std.mem.readInt(u32, prop[0..4], .big)
-        else 2;
-
-    const size_bytes = @sizeOf(u32) *
-        if (device_tree.root.getProp("#size-cells")) 
-            |prop| std.mem.readInt(u32, prop[0..4], .big)
-        else 1;
-
-    var ram = std.ArrayList(Pmm.MemoryRegion).initCapacity(early_allocator, 3) catch |err| {
-        @panic(@errorName(err));
-    };
-
-    for (device_tree.root.sub_nodes.items) |node| {
-        if (std.mem.eql(u8, node.getUnitName(), "memory")) {
-            const reg = node.getProp("reg") orelse unreachable;
-            var i: usize = 0;
-
-            while (i < reg.len) {
-                const base_addr = std.mem.readVarInt(u64, reg[i..i + address_bytes], .big);
-                i += address_bytes;
-                const length = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
-                i += size_bytes;
-
-                ram.append(early_allocator, .{
-                    .base_addr = base_addr,
-                    .length = length
-                }) catch |err| {
-                    @panic(@errorName(err));
-                };
-            }
-        }
-    }
-
-    var reserved = std.ArrayList(Pmm.MemoryRegion).initCapacity(early_allocator, 3) catch |err| {
-        @panic(@errorName(err));
-    };
-
-    for (device_tree.mem_rsv_map.items) |block| {
-        reserved.append(early_allocator, .{
-            .base_addr = block.address,
-            .length = block.size,
-        }) catch |err| {
-            @panic(@errorName(err));
-        };
-    }
-
-    reserved.append(early_allocator, .{
-        .base_addr = @intFromPtr(&__kstart),
-        .length = @intFromPtr(&__kend) - @intFromPtr(&__kstart)
-    }) catch {
-        @panic("Ran out of memory");
-    };
-
-    Pmm.init(ram.items, reserved.items);
+    initPmm(device_tree, early_allocator);
 
     _ = sbi.DebugConsole.consoleWrite("DONE!\n") catch unreachable;
 
@@ -131,3 +76,63 @@ fn clearBss() void {
 
 extern var __kstart: u8;
 extern var __kend: u8;
+
+/// Extract ram information and initialize phyical memory manager
+fn initPmm(device_tree: Fdt, alloc: std.mem.Allocator) void {
+    const address_bytes = @sizeOf(u32) *
+        if (device_tree.root.getProp("#address-cells")) 
+            |prop| std.mem.readInt(u32, prop[0..4], .big)
+        else 2;
+
+    const size_bytes = @sizeOf(u32) *
+        if (device_tree.root.getProp("#size-cells")) 
+            |prop| std.mem.readInt(u32, prop[0..4], .big)
+        else 1;
+
+    var ram = std.ArrayList(Pmm.MemoryRegion).initCapacity(alloc, 3) catch |err| {
+        @panic(@errorName(err));
+    };
+
+    for (device_tree.root.sub_nodes.items) |node| {
+        if (std.mem.eql(u8, node.getUnitName(), "memory")) {
+            const reg = node.getProp("reg") orelse unreachable;
+            var i: usize = 0;
+
+            while (i < reg.len) {
+                const base_addr = std.mem.readVarInt(u64, reg[i..i + address_bytes], .big);
+                i += address_bytes;
+                const length = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
+                i += size_bytes;
+
+                ram.append(alloc, .{
+                    .base_addr = base_addr,
+                    .length = length
+                }) catch |err| {
+                    @panic(@errorName(err));
+                };
+            }
+        }
+    }
+
+    var reserved = std.ArrayList(Pmm.MemoryRegion).initCapacity(alloc, 3) catch |err| {
+        @panic(@errorName(err));
+    };
+
+    for (device_tree.mem_rsv_map.items) |block| {
+        reserved.append(alloc, .{
+            .base_addr = block.address,
+            .length = block.size,
+        }) catch |err| {
+            @panic(@errorName(err));
+        };
+    }
+
+    reserved.append(alloc, .{
+        .base_addr = @intFromPtr(&__kstart),
+        .length = @intFromPtr(&__kend) - @intFromPtr(&__kstart)
+    }) catch {
+        @panic("Ran out of memory");
+    };
+
+    Pmm.init(ram.items, reserved.items);
+}
