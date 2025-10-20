@@ -3,7 +3,7 @@ const BOOT_STACK_SIZE: usize = 64 * (1 << 10);
 /// temp stack for booting
 var BOOT_STACK: [BOOT_STACK_SIZE]u8 align(16) = undefined;
 
-/// Setup boot stack for boot hart and jump to boot2
+/// Setup boot stack for boot hart and jump to boot
 export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
     asm volatile (
         \\ mv sp, %[stack_start]
@@ -22,7 +22,7 @@ const EARLY_HEAP_SIZE: usize = 1 << 20;
 var EARLY_HEAP: [EARLY_HEAP_SIZE]u8 align(16) = undefined;
 
 const std = @import("std");
-const sbi = @import("sbi.zig");
+const Sbi = @import("sbi.zig");
 const Fdt = @import("fdt.zig");
 const Pmm = @import("pmm.zig");
 const Io = @import("io.zig");
@@ -46,15 +46,15 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
 
     var stdout = Io.Stdout.writer(&.{});
 
-    stdout.print("Hello this is a test to print some hex: {x}", .{0x12345}) catch unreachable;
+    stdout.print("Hello this is a test to print some hex: 0x{x}", .{0x12345}) catch unreachable;
 
     halt();
 }
 
 /// Simple global panic handler to print out a message
-// TODO make this nicer
+// TODO add backtrace
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    _ = sbi.DebugConsole.consoleWrite(message) catch {};
+    _ = Sbi.DebugConsole.consoleWrite(message) catch {};
     halt(); 
 }
 

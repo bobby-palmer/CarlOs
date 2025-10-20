@@ -1,5 +1,5 @@
 const std = @import("std");
-const sbi = @import("sbi.zig");
+const Sbi = @import("sbi.zig");
 
 pub const Stdout = struct {
 
@@ -18,7 +18,7 @@ pub const Stdout = struct {
         var total_written: usize = 0;
 
         for (0..data.len - 1) |line_idx| {
-            const this_write: usize = @intCast(sbi.DebugConsole.consoleWrite(data[line_idx]) catch {
+            const this_write: usize = @intCast(Sbi.DebugConsole.consoleWrite(data[line_idx]) catch {
                 return std.io.Writer.Error.WriteFailed;
             });
 
@@ -30,7 +30,7 @@ pub const Stdout = struct {
         }
 
         for (0..splat) |_| {
-            const this_write: usize = @intCast(sbi.DebugConsole.consoleWrite(data[data.len - 1]) catch {
+            const this_write: usize = @intCast(Sbi.DebugConsole.consoleWrite(data[data.len - 1]) catch {
                 return std.io.Writer.Error.WriteFailed;
             });
 
