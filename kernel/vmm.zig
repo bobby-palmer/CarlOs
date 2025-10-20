@@ -88,11 +88,10 @@ const Sv39Pte = packed struct {
     reserved1: u10,
 };
 
-
 const PageTable = struct {
     entries: [512]Sv39Pte
 };
 
 pub fn mapPage(base_table: usize, vaddr: usize, paddr: usize, flags: Flags) void {
-    const page_table: *PageTable = @ptrFromInt(base_table);
+    unreachable;
 }

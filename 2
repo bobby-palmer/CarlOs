@@ -1,0 +1,19 @@
+pub const PAddr = struct {
+    addr: usize,
+
+    pub fn new(addr: usize) @This() {
+        return @This() {
+            .addr = addr
+        };
+    }
+};
+
+pub const VAddr = struct {
+    addr: usize,
+
+    pub fn new(addr: usize) @This() {
+        return @This() {
+            .addr = addr
+        };
+    }
+};
