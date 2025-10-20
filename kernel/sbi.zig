@@ -84,18 +84,64 @@ fn call(eid: i32, fid: i32, args: SbiArgs) SbiError!isize {
     };
 }
 
-pub const DebugConsole = struct {
-    const EID: i32 = 0x4442434E;
+pub const Base = struct {
+    pub const EID: i32 = 0x10;
 
-    /// Write bytes to the debug console from input memory.
-    /// This is a non-blocking SBI call and it may do partial/no writes if the 
-    /// debug console is not able to accept more bytes.
-    /// If successful returns the number of bytes written
+    /// Returns true if the given SBI extension ID (EID) is available
+    pub fn probeExtension(eid: i32) bool {
+        const res = call(EID, 0x3, .{ 
+            .a0 = @intCast(eid) 
+        }) catch unreachable;
+
+        return res != 0;
+    }
+};
+
+pub const Timer = struct {
+    pub const EID: i32 = 0x54494D45;
+
+    /// Programs the clock for next event after stime_value time. stime_value
+    /// is in absolute time. 
+    pub fn setTimer(stime_value: u64) void {
+        _ = call(EID, 0x0, .{
+            .a0 = @intCast(stime_value)
+        }) catch unreachable;
+    }
+};
+
+pub const DebugConsole = struct {
+    pub const EID: i32 = 0x4442434E;
+
+    /// Write bytes to the debug console from input memory. This is a
+    /// non-blocking SBI call and it may do partial/no writes if the debug
+    /// console is not able to accept more bytes. If successful returns the
+    /// number of bytes written
     pub fn consoleWrite(message: []const u8) SbiError!isize {
         return call(EID, 0x0, .{
             .a0 = message.len,
             .a1 = @intFromPtr(message.ptr),
             .a2 = 0, // whole address fits in the first argument
+        });
+    }
+
+    /// Read bytes from the debug console into an output memory. This is a
+    /// non-blocking SBI call and it will not write anything into the output
+    /// memory if there are no bytes to be read in the debug console.
+    pub fn consoleRead(buffer: []u8) SbiError!isize {
+        return call(EID, 0x1, .{
+            .a0 = buffer.len,
+            .a1 = @intFromPtr(buffer.ptr),
+            .a2 = 0, // Ditto
+        });
+    }
+
+    /// Write a single byte to the debug console. This is a blocking SBI call
+    /// and it will only return after writing the specified byte to the debug
+    /// console. It will also return, with SBI_ERR_FAILED, if there are I/O
+    /// errors
+    pub fn consoleWriteByte(byte: u8) SbiError!void {
+        _ = try call(EID, 0x2, .{
+            .a0 = byte
         });
     }
 };
