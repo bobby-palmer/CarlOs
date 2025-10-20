@@ -1,4 +1,6 @@
-pub const PAGE_SIZE: usize = 0x1000;
+// TODO update this to use the Paddr types and switch to buddy allocator maybe?
+
+const PAGE_SIZE = @import("constants.zig").PAGE_SIZE;
 
 pub const MemoryRegion = struct {
     base_addr: usize,

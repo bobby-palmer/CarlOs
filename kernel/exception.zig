@@ -8,6 +8,7 @@ export fn handleTrap(_: *TrapFrame) void {
     _ = stval;
     _ = user_pc;
 
+    // TODO implement syscalls and what not
     @panic("Trap handler is not implemented");
 }
 

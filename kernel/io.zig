@@ -2,6 +2,7 @@ const std = @import("std");
 const Sbi = @import("sbi.zig");
 
 pub const Stdout = struct {
+    // TODO implmeemnt initializing the UART
 
     pub fn writer(buffer: []u8) std.io.Writer {
         return std.io.Writer {

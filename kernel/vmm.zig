@@ -1,6 +1,7 @@
-//! Virtual memory manager (vmm) module
+//! Virtual memory manager (vmm) module implementing Sv39 paging RISC-V
 
 const std = @import("std");
+const types = @import("types.zig");
 
 /// Permission flags for a virtual page
 /// excluding flags that are automatically set
@@ -86,12 +87,30 @@ const Sv39Pte = packed struct {
     ppn2: u26,
     /// Reserved for bigger entries (such as SV48 and SV56).
     reserved1: u10,
+
+    fn isLeaf(self: *const @This()) bool {
+        return (
+            self.flags.R == 1 or
+            self.flags.W == 1 or
+            self.flags.X == 1
+        );
+    }
 };
 
 const PageTable = struct {
     entries: [512]Sv39Pte
 };
 
-pub fn mapPage(base_table: usize, vaddr: usize, paddr: usize, flags: Flags) void {
+// virual page number parsing
+fn vpn(vaddr: types.VAddr, index: usize) u9 {
+    return @intCast(
+        (vaddr.addr >> @intCast(12 + 9 * index)) & 0x1FF
+    );
+}
+
+// TODO add ppn parsing and research how to place address in page table
+
+// TODO
+pub fn mapPage(_: *PageTable, _: types.VAddr, _: types.PAddr, _: Flags) void {
     unreachable;
 }
