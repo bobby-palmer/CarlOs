@@ -51,7 +51,7 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
 
     Exception.init();
 
-    asm volatile ("unimp"); // This should throw exception
+    asm volatile ("unimp"); // This should jump to the exception handler
 
     halt();
 }
@@ -60,6 +60,7 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
 // TODO add backtrace
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     _ = Sbi.DebugConsole.consoleWrite(message) catch {};
+    _ = Sbi.DebugConsole.consoleWrite("\n") catch {};
     halt(); 
 }
 
