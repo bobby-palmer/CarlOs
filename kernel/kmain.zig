@@ -26,6 +26,7 @@ const Sbi = @import("sbi.zig");
 const Fdt = @import("fdt.zig");
 const Pmm = @import("pmm.zig");
 const Io = @import("io.zig");
+const Exception = @import("exception.zig");
 
 /// rest of setup for the boot hart
 export fn boot(_: u64, fdt: [*]const u64) noreturn {
@@ -46,7 +47,11 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
 
     var stdout = Io.Stdout.writer(&.{});
 
-    stdout.print("Hello this is a test to print some hex: 0x{x}", .{0x12345}) catch unreachable;
+    stdout.print("Hello this is a test to print some hex: 0x{x}\n", .{0x12345}) catch unreachable;
+
+    Exception.init();
+
+    asm volatile ("unimp"); // This should throw exception
 
     halt();
 }
