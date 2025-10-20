@@ -95,7 +95,7 @@ pub const DebugConsole = struct {
         return call(EID, 0x0, .{
             .a0 = message.len,
             .a1 = @intFromPtr(message.ptr),
-            .a2 = 0,
+            .a2 = 0, // whole address fits in the first argument
         });
     }
 };

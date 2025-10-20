@@ -25,6 +25,7 @@ const std = @import("std");
 const sbi = @import("sbi.zig");
 const Fdt = @import("fdt.zig");
 const Pmm = @import("pmm.zig");
+const Io = @import("io.zig");
 
 /// rest of setup for the boot hart
 export fn boot(_: u64, fdt: [*]const u64) noreturn {
@@ -43,7 +44,9 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
 
     initPmm(device_tree, early_allocator);
 
-    _ = sbi.DebugConsole.consoleWrite("DONE!\n") catch unreachable;
+    var stdout = Io.Stdout.writer(&.{});
+
+    stdout.print("Hello this is a test to print some hex: {x}", .{0x12345}) catch unreachable;
 
     halt();
 }
