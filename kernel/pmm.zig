@@ -127,6 +127,7 @@ pub fn freeFrames(base_addr: usize, len: usize) void {
     const first_page = common.pageDown(base_addr);
 
     for (0..len) |offset| {
+        std.debug.assert(isManaged(first_page + offset));
         std.debug.assert(isSet(first_page + offset));
         clear(first_page + offset);
     }
