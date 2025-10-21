@@ -71,14 +71,15 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
         const end = common.pageUp(entry.base_addr + entry.length);
 
         while (index < end) : (index += 1) {
-            set(index);
+            if (isManaged(index))
+                set(index);
         }
     }
 
     // reserve bitmap
     {
-        var index = common.pageDown(bitmap.ptr);
-        const end = common.pageUp(bitmap.ptr + bitmap.length);
+        var index = common.pageDown(@intFromPtr(bitmap.ptr));
+        const end = common.pageUp(@intFromPtr(bitmap.ptr + bitmap.len));
 
         while (index < end) : (index += 1) {
             set(index);
@@ -126,7 +127,7 @@ fn set(page: u64) void {
     const word_idx = offset / 64;
     const bit_idx = offset % 64;
 
-    bitmap[word_idx] |= (1 << bit_idx);
+    bitmap[word_idx] |= (@as(u64, 1) << @intCast(bit_idx));
 }
 
 fn clear(page: u64) void {
@@ -137,7 +138,7 @@ fn clear(page: u64) void {
     const word_idx = offset / 64;
     const bit_idx = offset % 64;
 
-    bitmap[word_idx] &= ~(1 << bit_idx);
+    bitmap[word_idx] &= ~(@as(u64, 1) << @intCast(bit_idx));
 }
 
 fn isSet(page: u64) bool {
