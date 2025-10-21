@@ -1,8 +1,18 @@
+//! Setup the user to kernel entry for faults
+
+const riscv = @import("riscv.zig");
+
+/// Set entry pointer to call exception handler
+pub fn init() void {
+    const entry_ptr = @intFromPtr(&kernelEntry);
+    riscv.writeCSR("stvec", @intCast(entry_ptr));
+}
+
 /// Kernel trap handler
 export fn handleTrap(_: *TrapFrame) void {
-    const scause = readCSR("scause");
-    const stval = readCSR("stval");
-    const user_pc = readCSR("sepc");
+    const scause = riscv.readCSR("scause");
+    const stval = riscv.readCSR("stval");
+    const user_pc = riscv.readCSR("sepc");
 
     _ = scause;
     _ = stval;
@@ -12,28 +22,6 @@ export fn handleTrap(_: *TrapFrame) void {
     @panic("Trap handler is not implemented");
 }
 
-/// Set entry pointer to call exception handler
-pub fn init() void {
-    const entry_ptr = @intFromPtr(&kernelEntry);
-    writeCSR("stvec", @intCast(entry_ptr));
-}
-
-// Read a CSR register
-inline fn readCSR(comptime reg: []const u8) u64 {
-    var result: u64 = undefined;
-    asm volatile ("csrr %[ret], " ++ reg
-        : [ret] "=r" (result),
-    );
-    return result;
-}
-
-// Write to a CSR register
-inline fn writeCSR(comptime reg: []const u8, value: u64) void {
-    asm volatile ("csrw " ++ reg ++ ", %[val]"
-        :
-        : [val] "r" (value),
-    );
-}
 
 /// Exception entry point, saves all the registers
 /// jumps to handle exception and then returns

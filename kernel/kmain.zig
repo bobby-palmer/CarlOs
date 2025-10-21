@@ -32,6 +32,8 @@ const Exception = @import("exception.zig");
 export fn boot(_: u64, fdt: [*]const u64) noreturn {
     clearBss(); // Must do this first, do not move this
 
+    Exception.init(); // setup jump vector
+
     var fa = std.heap.FixedBufferAllocator.init(&EARLY_HEAP);
     const early_allocator = fa.allocator();
 
@@ -43,15 +45,9 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
         @panic("Bad fdt header!");
     }
 
-    initPmm(device_tree, early_allocator);
-
-    var stdout = Io.Stdout.writer(&.{});
-
-    stdout.print("Hello this is a test to print some hex: 0x{x}\n", .{0x12345}) catch unreachable;
-
-    Exception.init();
-
-    asm volatile ("unimp"); // This should jump to the exception handler
+    initPmm(device_tree, early_allocator) catch |err| {
+        @panic(@errorName(err));
+    };
 
     halt();
 }
@@ -87,7 +83,7 @@ extern var __kstart: u8;
 extern var __kend: u8;
 
 /// Extract ram information and initialize phyical memory manager
-fn initPmm(device_tree: Fdt, alloc: std.mem.Allocator) void {
+fn initPmm(device_tree: Fdt, alloc: std.mem.Allocator) !void {
     const address_bytes = @sizeOf(u32) *
         if (device_tree.root.getProp("#address-cells")) 
             |prop| std.mem.readInt(u32, prop[0..4], .big)
@@ -98,9 +94,7 @@ fn initPmm(device_tree: Fdt, alloc: std.mem.Allocator) void {
             |prop| std.mem.readInt(u32, prop[0..4], .big)
         else 1;
 
-    var ram = std.ArrayList(Pmm.MemoryRegion).initCapacity(alloc, 3) catch |err| {
-        @panic(@errorName(err));
-    };
+    var ram = try std.ArrayList(Pmm.MemoryRegion).initCapacity(alloc, 3);
 
     for (device_tree.root.sub_nodes.items) |node| {
         if (std.mem.eql(u8, node.getUnitName(), "memory")) {
@@ -113,35 +107,27 @@ fn initPmm(device_tree: Fdt, alloc: std.mem.Allocator) void {
                 const length = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
                 i += size_bytes;
 
-                ram.append(alloc, .{
+                try ram.append(alloc, .{
                     .base_addr = base_addr,
                     .length = length
-                }) catch |err| {
-                    @panic(@errorName(err));
-                };
+                });
             }
         }
     }
 
-    var reserved = std.ArrayList(Pmm.MemoryRegion).initCapacity(alloc, 3) catch |err| {
-        @panic(@errorName(err));
-    };
+    var reserved = try std.ArrayList(Pmm.MemoryRegion).initCapacity(alloc, 3);
 
     for (device_tree.mem_rsv_map.items) |block| {
-        reserved.append(alloc, .{
+        try reserved.append(alloc, .{
             .base_addr = block.address,
             .length = block.size,
-        }) catch |err| {
-            @panic(@errorName(err));
-        };
+        });
     }
 
-    reserved.append(alloc, .{
+    try reserved.append(alloc, .{
         .base_addr = @intFromPtr(&__kstart),
         .length = @intFromPtr(&__kend) - @intFromPtr(&__kstart)
-    }) catch {
-        @panic("Ran out of memory");
-    };
+    });
 
     Pmm.init(ram.items, reserved.items);
 }
