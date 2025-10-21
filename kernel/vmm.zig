@@ -1,6 +1,7 @@
 //! Virtual memory manager (vmm) module implementing Sv39 paging RISC-V
 
 const std = @import("std");
+const Pmm = @import("pmm.zig");
 
 /// MMU Permission bits and state tracking
 pub const Flags = packed struct {
@@ -67,7 +68,3 @@ const Sv39Pte = packed struct {
 const PageTable = struct {
     entries: [512]Sv39Pte
 };
-
-fn walk(pt: *PageTable, vaddr: usize, alloc: bool) ?*Sv39Pte {
-
-}

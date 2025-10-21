@@ -25,7 +25,6 @@ const std = @import("std");
 const Sbi = @import("sbi.zig");
 const Fdt = @import("fdt.zig");
 const Pmm = @import("pmm.zig");
-const Io = @import("io.zig");
 const Exception = @import("exception.zig");
 
 /// rest of setup for the boot hart
