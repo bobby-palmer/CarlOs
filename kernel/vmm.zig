@@ -42,6 +42,11 @@ pub const Flags = packed struct {
     D: u1,
 };
 
+/// Map virtual address to phyical address
+pub fn mapPage(_: *PageTable, _: usize, _: usize, _: Flags) void {
+    unreachable; // TODO
+}
+
 /// Page table entry in Sv39 paging for RISC-V 64
 const Sv39Pte = packed struct {
 

@@ -105,10 +105,17 @@ pub fn allocFrames(needed: usize) PmmError!usize {
     }
 
     if (found == needed) {
+        const start_page = index - needed;
+
         for (0..needed) |offset| {
-            set(index - offset - 1);
+            set(start_page + offset);
         }
-        return common.addrOfPage(index - needed);
+
+        const start_addr = common.addrOfPage(start_page);
+        const casted = @as([*]u8, @ptrFromInt(start_addr));
+        @memset(casted[0..needed*common.PAGE_SIZE], 0);
+
+        return  start_addr;
     } else {
         return PmmError.OutOfMemory;
     }
