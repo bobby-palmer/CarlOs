@@ -56,11 +56,34 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
     @memset(bitmap, (1 << 64) - 1);
 
     // free ram
-    // TODO
+    for (ram) |entry| {
+        var index = common.pageUp(entry.base_addr);
+        const end = common.pageDown(entry.base_addr + entry.length);
+
+        while (index < end) : (index += 1) {
+            clear(index);
+        }
+    }
+
     // reserved
-    // TODO
+    for (reserved) |entry| {
+        var index = common.pageDown(entry.base_addr);
+        const end = common.pageUp(entry.base_addr + entry.length);
+
+        while (index < end) : (index += 1) {
+            set(index);
+        }
+    }
+
     // reserve bitmap
-    // TODO
+    {
+        var index = common.pageDown(bitmap.ptr);
+        const end = common.pageUp(bitmap.ptr + bitmap.length);
+
+        while (index < end) : (index += 1) {
+            set(index);
+        }
+    }
 }
 
 /// Allocate "len" contiguous pages. len must be >0
@@ -68,6 +91,7 @@ pub fn allocFrames(len: usize) PmmError!usize {
     std.debug.assert(initialized);
     std.debug.assert(len > 0);
 
+    // TODO not sure how to make this fast
     unreachable;
 }
 
@@ -77,16 +101,65 @@ pub fn allocFrame() PmmError!usize {
 }
 
 /// Mark "len" pages starting from "base_addr" as free
-pub fn freeFrames(base_addr: usize, _: usize) void {
+pub fn freeFrames(base_addr: usize, len: usize) void {
     std.debug.assert(initialized);
     std.debug.assert(std.mem.isAligned(base_addr, common.PAGE_SIZE));
 
-    unreachable;
+    const first_page = common.pageDown(base_addr);
+
+    for (0..len) |offset| {
+        std.debug.assert(isSet(first_page + offset));
+        clear(first_page + offset);
+    }
 }
 
 /// Make page starting at "base_addr" as free
 pub fn freeFrame(base_addr: usize) void {
     freeFrames(base_addr, 1);
+}
+
+fn set(page: u64) void {
+    std.debug.assert(initialized);
+    std.debug.assert(isManaged(page));
+
+    const offset = page - base_page;
+    const word_idx = offset / 64;
+    const bit_idx = offset % 64;
+
+    bitmap[word_idx] |= (1 << bit_idx);
+}
+
+fn clear(page: u64) void {
+    std.debug.assert(initialized);
+    std.debug.assert(isManaged(page));
+
+    const offset = page - base_page;
+    const word_idx = offset / 64;
+    const bit_idx = offset % 64;
+
+    bitmap[word_idx] &= ~(1 << bit_idx);
+}
+
+fn isSet(page: u64) bool {
+    std.debug.assert(initialized);
+    std.debug.assert(isManaged(page));
+
+    const offset = page - base_page;
+    const word_idx = offset / 64;
+    const bit_idx = offset % 64;
+
+    return (bitmap[word_idx] >> bit_idx) & 1 == 1;
+}
+
+/// Return true if page is managed by the pmm
+fn isManaged(page: u64) bool {
+    std.debug.assert(initialized);
+    return base_page <= page and page < endPage();
+}
+
+/// First page after pages in bitmap
+fn endPage() u64 {
+    return base_page + bitmap.len * 64;
 }
 
 var initialized = false;
