@@ -87,13 +87,31 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
     }
 }
 
-/// Allocate "len" contiguous pages. len must be >0
-pub fn allocFrames(len: usize) PmmError!usize {
+/// Allocate "needed" contiguous pages. len must be >0
+pub fn allocFrames(needed: usize) PmmError!usize {
     std.debug.assert(initialized);
-    std.debug.assert(len > 0);
+    std.debug.assert(needed > 0);
 
-    // TODO not sure how to make this fast
-    unreachable;
+    var index = base_page;
+    var found: usize = 0;
+    const end = endPage();
+
+    while (index < end and found < needed) : (index += 1) {
+        if (!isSet(index)) {
+            found += 1;
+        } else {
+            found = 0;
+        }
+    }
+
+    if (found == needed) {
+        for (0..needed) |offset| {
+            set(index - offset - 1);
+        }
+        return common.addrOfPage(index - needed);
+    } else {
+        return PmmError.OutOfMemory;
+    }
 }
 
 /// Allocate 1 page
