@@ -60,14 +60,6 @@ const Sv39Pte = packed struct {
 
     /// Reserved for bigger entries (such as SV48 and SV56).
     reserved1: u10,
-
-    fn isLeaf(self: *const @This()) bool {
-        return (
-            self.flags.R == 1 or
-            self.flags.W == 1 or
-            self.flags.X == 1
-        );
-    }
 };
 
 const PageTable = struct {
