@@ -13,11 +13,33 @@ const PmmError = error {
     OutOfMemory
 };
 
-pub fn init(ram: []const MemoryRegion, _: []const MemoryRegion) void {
+pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
     std.debug.assert(!initialized);
     std.debug.assert(ram.len > 0);
 
-    initialized = true;
+    // at the very least kernel must be reserved
+    std.debug.assert(reserved.len > 0);
+
+    var min_page = common.pageDown(ram[0].base_addr);
+    var max_page = common.pageUp(ram[0].base_addr + ram[0].length);
+
+    for (ram) |entry| {
+        min_page = @min(min_page, common.pageDown(entry.base_addr));
+        max_page = @max(
+            max_page, 
+            common.pageUp(entry.base_addr + entry.length)
+        );
+    }
+
+    var page_after_reserved = common.pageUp(reserved[0].base_addr +
+        reserved[0].length);
+
+    for (reserved) |entry| {
+        page_after_reserved = @max(
+            page_after_reserved,
+            common.pageUp(entry.base_addr + entry.length)
+        );
+    }
 }
 
 /// Allocate "len" contiguous pages. len must be >0
