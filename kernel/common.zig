@@ -10,3 +10,8 @@ pub fn pageDown(addr: usize) u64 {
 pub fn pageUp(addr: usize) u64 {
     return (addr + PAGE_SIZE - 1) / PAGE_SIZE;
 }
+
+/// return address of the start of page
+pub fn addrOfPage(page: u64) usize {
+    return page << PAGE_SHIFT;
+}

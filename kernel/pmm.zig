@@ -20,6 +20,7 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
     // at the very least kernel must be reserved
     std.debug.assert(reserved.len > 0);
 
+    // Collect state
     var min_page = common.pageDown(ram[0].base_addr);
     var max_page = common.pageUp(ram[0].base_addr + ram[0].length);
 
@@ -40,6 +41,26 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
             common.pageUp(entry.base_addr + entry.length)
         );
     }
+
+    // Init everything to taken
+    initialized = true;
+    base_page = min_page;
+
+    const pages = (max_page - min_page);
+    const lwords = (pages / 64);
+    const bmap_start = @as([*]u64, @ptrFromInt(common.addrOfPage(page_after_reserved)));
+
+    bitmap = bmap_start[0..lwords];
+
+    // Set all bits to high (taken)
+    @memset(bitmap, (1 << 64) - 1);
+
+    // free ram
+    // TODO
+    // reserved
+    // TODO
+    // reserve bitmap
+    // TODO
 }
 
 /// Allocate "len" contiguous pages. len must be >0
