@@ -1,6 +1,4 @@
-//! Riscv helper functions for calling raw asm
-
-// Read a CSR register
+/// Read a CSR register
 pub inline fn readCSR(comptime reg: []const u8) u64 {
     var result: u64 = undefined;
     asm volatile ("csrr %[ret], " ++ reg
@@ -9,7 +7,7 @@ pub inline fn readCSR(comptime reg: []const u8) u64 {
     return result;
 }
 
-// Write to a CSR register
+/// Write to a CSR register
 pub inline fn writeCSR(comptime reg: []const u8, value: u64) void {
     asm volatile ("csrw " ++ reg ++ ", %[val]"
         :

@@ -2,9 +2,7 @@
 //! used phyical pages. It must be initialized exactly once!
 
 const std = @import("std");
-const constants = @import("constants.zig");
-
-// Interface
+const common = @import("common.zig");
 
 pub const MemoryRegion = struct {
     base_addr: usize,
@@ -15,13 +13,18 @@ const PmmError = error {
     OutOfMemory
 };
 
-pub fn init(_: []const MemoryRegion, _: []const MemoryRegion) void {
+pub fn init(ram: []const MemoryRegion, _: []const MemoryRegion) void {
+    std.debug.assert(!initialized);
+    std.debug.assert(ram.len > 0);
 
+    initialized = true;
 }
 
-/// Allocate "len" contiguous pages
-pub fn allocFrames(_: usize) PmmError!usize {
+/// Allocate "len" contiguous pages. len must be >0
+pub fn allocFrames(len: usize) PmmError!usize {
     std.debug.assert(initialized);
+    std.debug.assert(len > 0);
+
     unreachable;
 }
 
@@ -31,8 +34,10 @@ pub fn allocFrame() PmmError!usize {
 }
 
 /// Mark "len" pages starting from "base_addr" as free
-pub fn freeFrames(_: usize, _: usize) void {
+pub fn freeFrames(base_addr: usize, _: usize) void {
     std.debug.assert(initialized);
+    std.debug.assert(std.mem.isAligned(base_addr, common.PAGE_SIZE));
+
     unreachable;
 }
 
@@ -40,8 +45,6 @@ pub fn freeFrames(_: usize, _: usize) void {
 pub fn freeFrame(base_addr: usize) void {
     freeFrames(base_addr, 1);
 }
-
-// Internal
 
 var initialized = false;
 var base_page: u64 = undefined;
