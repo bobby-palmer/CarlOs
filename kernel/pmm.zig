@@ -9,9 +9,7 @@ pub const MemoryRegion = struct {
     length: usize,
 };
 
-const PmmError = error {
-    OutOfMemory
-};
+const Error = error {OutOfMemory};
 
 pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
     std.debug.assert(!initialized);
@@ -88,7 +86,7 @@ pub fn init(ram: []const MemoryRegion, reserved: []const MemoryRegion) void {
 }
 
 /// Allocate "needed" contiguous pages. len must be >0
-pub fn allocFrames(needed: usize) PmmError!usize {
+pub fn allocFrames(needed: usize) Error!usize {
     std.debug.assert(initialized);
     std.debug.assert(needed > 0);
 
@@ -117,12 +115,12 @@ pub fn allocFrames(needed: usize) PmmError!usize {
 
         return  start_addr;
     } else {
-        return PmmError.OutOfMemory;
+        return Error.OutOfMemory;
     }
 }
 
 /// Allocate 1 page
-pub fn allocFrame() PmmError!usize {
+pub fn allocFrame() Error!usize {
     return allocFrames(1);
 }
 
