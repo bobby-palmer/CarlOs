@@ -14,3 +14,8 @@ pub inline fn writeCSR(comptime reg: []const u8, value: u64) void {
         : [val] "r" (value),
     );
 }
+
+/// Flush and invalidate TLB
+pub inline fn sfenceVma() void {
+    asm volatile("sfence.vma zero, zero");
+}
