@@ -22,16 +22,16 @@ const EARLY_HEAP_SIZE: usize = 1 << 20;
 var EARLY_HEAP: [EARLY_HEAP_SIZE]u8 align(16) = undefined;
 
 const std = @import("std");
-const Sbi = @import("sbi.zig");
+const sbi = @import("sbi.zig");
 const Fdt = @import("fdt.zig");
-const Pmm = @import("pmm.zig");
-const Exception = @import("exception.zig");
+const pmm = @import("pmm.zig");
+const exception = @import("exception.zig");
 
 /// rest of setup for the boot hart
 export fn boot(_: u64, fdt: [*]const u64) noreturn {
     clearBss(); // Must do this first, do not move this
 
-    Exception.init(); // setup jump vector
+    exception.init(); // setup jump vector
 
     var fa = std.heap.FixedBufferAllocator.init(&EARLY_HEAP);
     const early_allocator = fa.allocator();
@@ -54,8 +54,8 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
 /// Simple global panic handler to print out a message
 // TODO add backtrace
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    _ = Sbi.DebugConsole.consoleWrite(message) catch {};
-    _ = Sbi.DebugConsole.consoleWrite("\n") catch {};
+    _ = sbi.DebugConsole.consoleWrite(message) catch {};
+    _ = sbi.DebugConsole.consoleWrite("\n") catch {};
     halt(); 
 }
 
@@ -83,6 +83,21 @@ extern var __kend: u8;
 
 /// Extract ram information and initialize phyical memory manager
 fn initPmm(device_tree: Fdt, alloc: std.mem.Allocator) !void {
+
+    var reserved = try std.ArrayList(pmm.MemoryRegion).initCapacity(alloc, 3);
+
+    for (device_tree.mem_rsv_map.items) |block| {
+        try reserved.append(alloc, .{
+            .start = block.address,
+            .end = block.address + block.size,
+        });
+    }
+
+    try reserved.append(alloc, .{
+        .start = @intFromPtr(&__kstart),
+        .end = @intFromPtr(&__kend),
+    });
+
     const address_bytes = @sizeOf(u32) *
         if (device_tree.root.getProp("#address-cells")) 
             |prop| std.mem.readInt(u32, prop[0..4], .big)
@@ -93,40 +108,26 @@ fn initPmm(device_tree: Fdt, alloc: std.mem.Allocator) !void {
             |prop| std.mem.readInt(u32, prop[0..4], .big)
         else 1;
 
-    var ram = try std.ArrayList(Pmm.MemoryRegion).initCapacity(alloc, 3);
-
     for (device_tree.root.sub_nodes.items) |node| {
         if (std.mem.eql(u8, node.getUnitName(), "memory")) {
             const reg = node.getProp("reg") orelse unreachable;
             var i: usize = 0;
 
             while (i < reg.len) {
-                const base_addr = std.mem.readVarInt(u64, reg[i..i + address_bytes], .big);
+                const base_addr = std.mem.readVarInt(u64, reg[i..i +
+                    address_bytes], .big);
                 i += address_bytes;
-                const length = std.mem.readVarInt(u64, reg[i .. i + size_bytes], .big);
+                const length = std.mem.readVarInt(u64, reg[i .. i +
+                    size_bytes], .big);
                 i += size_bytes;
 
-                try ram.append(alloc, .{
-                    .base_addr = base_addr,
-                    .length = length
-                });
+                const region = pmm.MemoryRegion {
+                    .start = base_addr,
+                    .end = base_addr + length,
+                };
+
+                pmm.addRam(region, reserved.items);
             }
         }
     }
-
-    var reserved = try std.ArrayList(Pmm.MemoryRegion).initCapacity(alloc, 3);
-
-    for (device_tree.mem_rsv_map.items) |block| {
-        try reserved.append(alloc, .{
-            .base_addr = block.address,
-            .length = block.size,
-        });
-    }
-
-    try reserved.append(alloc, .{
-        .base_addr = @intFromPtr(&__kstart),
-        .length = @intFromPtr(&__kend) - @intFromPtr(&__kstart)
-    });
-
-    Pmm.init(ram.items, reserved.items);
 }
