@@ -1,7 +1,7 @@
-//! Kernel scoped slab allocator. Phyical memory manager (pmm) must be
-//! initialized before using.
+//! Kernel scoped slab allocator
 
 const std = @import("std");
+const pmm = @import("pmm.zig");
 
 pub const allocator = std.mem.Allocator {
     .ptr = undefined,
