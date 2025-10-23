@@ -1,7 +1,8 @@
-//! Kernel scoped slab allocator
+//! Kernel scoped slab allocator. TODO
 
 const std = @import("std");
 const pmm = @import("pmm.zig");
+const common = @import("common.zig");
 
 pub const allocator = std.mem.Allocator {
     .ptr = undefined,
@@ -36,13 +37,8 @@ fn free(
     _ = ret_addr;
 }
 
-const Slab = struct {
-    slab_list: ?*Slab,
-    free_list: ?*anyopaque,
-    inuse: usize,
-};
-
-const MemCache = struct {
-    partial_slabs: ?*Slab,
-    object_size: usize,
+/// Header for a region of contiguous pages
+const BlockHeader = struct {
+    next: ?*BlockHeader,
+    used: usize,
 };

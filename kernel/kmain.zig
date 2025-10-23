@@ -23,12 +23,12 @@ var EARLY_HEAP: [EARLY_HEAP_SIZE]u8 align(16) = undefined;
 
 const std = @import("std");
 const sbi = @import("sbi.zig");
-const Fdt = @import("fdt.zig");
+const fdt = @import("fdt.zig");
 const pmm = @import("pmm.zig");
 const exception = @import("exception.zig");
 
 /// rest of setup for the boot hart
-export fn boot(_: u64, fdt: [*]const u64) noreturn {
+export fn boot(_: u64, flattened_device_tree: [*]const u64) noreturn {
     clearBss(); // Must do this first, do not move this
 
     exception.init(); // setup jump vector
@@ -36,7 +36,7 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
     var fa = std.heap.FixedBufferAllocator.init(&EARLY_HEAP);
     const early_allocator = fa.allocator();
 
-    const device_tree: Fdt = Fdt.parse(fdt, early_allocator) catch |err| {
+    const device_tree: fdt = fdt.parse(flattened_device_tree, early_allocator) catch |err| {
         @panic(@errorName(err));
     };
 
@@ -47,6 +47,8 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
     initPmm(device_tree, early_allocator) catch |err| {
         @panic(@errorName(err));
     };
+
+    _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};
 
     halt();
 }
@@ -82,7 +84,7 @@ extern var __kstart: u8;
 extern var __kend: u8;
 
 /// Extract ram information and initialize phyical memory manager
-fn initPmm(device_tree: Fdt, alloc: std.mem.Allocator) !void {
+fn initPmm(device_tree: fdt, alloc: std.mem.Allocator) !void {
 
     var reserved = try std.ArrayList(pmm.MemoryRegion).initCapacity(alloc, 3);
 
