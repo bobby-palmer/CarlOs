@@ -142,4 +142,3 @@ const ListNode = struct {
 };
 
 var buddy_lists: [MAX_ORDER + 1]ListNode = [_]ListNode{ListNode{.next = null }} ** (MAX_ORDER + 1);
-// var free_page_count: usize = 0; TODO implement this for debugging
