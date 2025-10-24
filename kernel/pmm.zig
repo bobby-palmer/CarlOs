@@ -17,7 +17,7 @@ pub const Page = struct {
         /// Page is managed by pmm
         free: u1,
 
-        /// Page is reserved (openSbi)
+        /// Page is reserved (openSbi and whatnot)
         reserved: u1,
     },
 
@@ -85,6 +85,13 @@ pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
         }
     }
 
+    // Reserve memory used for page metadata
+    for (0..pages_needed) |offset| {
+        const page = pageOfPpn(first_after_reserved + offset) orelse unreachable;
+        page.flags.reserved = 1;
+        page.flags.free = 0;
+    }
+
     for (start_ppn..end_ppn) |ppn| {
         const page = pageOfPpn(ppn) orelse unreachable;
         if (page.flags.reserved == 0) {
@@ -108,7 +115,7 @@ pub fn alloc(order: u8) Error!usize {
 
             var current_order = order_to_try;
             while (current_order > order) : (current_order -= 1) {
-                const buddy_ppn = ppn + (@as(u64, 1) << (current_order - 1));
+                const buddy_ppn = ppn + (@as(u64, 1) << @intCast(current_order - 1));
                 const buddy_page = pageOfPpn(buddy_ppn) orelse unreachable;
 
                 buddy_page.flags.free = 1;
@@ -125,7 +132,8 @@ pub fn alloc(order: u8) Error!usize {
 }
 
 pub fn free(base_addr: usize, order: u8) void {
-    std.debug.assert(std.mem.isAligned(base_addr, common.PAGE_SIZE << order));
+    std.debug.assert(order <= MAX_ORDER);
+    std.debug.assert(std.mem.isAligned(base_addr, common.PAGE_SIZE << @intCast(order)));
 
     lock.lock();
     defer lock.unlock();
@@ -134,7 +142,7 @@ pub fn free(base_addr: usize, order: u8) void {
     var current_order = order;
 
     while (current_order < MAX_ORDER) {
-        const buddy_ppn = current_ppn ^ (@as(u64, 1) << current_order);
+        const buddy_ppn = current_ppn ^ (@as(u64, 1) << @intCast(current_order));
         const buddy_page = pageOfPpn(buddy_ppn) orelse break;
 
         if (buddy_page.flags.free == 1 and buddy_page.payload.free.order == current_order) {
