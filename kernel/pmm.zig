@@ -93,7 +93,7 @@ pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
     }
 }
 
-pub fn alloc(order: u56) Error!usize {
+pub fn alloc(order: u8) Error!usize {
     if (order > MAX_ORDER) {
         return Error.MaxOrderExceeded;
     }
@@ -124,7 +124,7 @@ pub fn alloc(order: u56) Error!usize {
     return Error.OutOfMemory;
 }
 
-pub fn free(base_addr: usize, order: u5) void {
+pub fn free(base_addr: usize, order: u8) void {
     std.debug.assert(std.mem.isAligned(base_addr, common.PAGE_SIZE << order));
 
     lock.lock();
