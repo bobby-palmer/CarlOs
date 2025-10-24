@@ -86,7 +86,7 @@ extern var __kend: u8;
 /// Extract ram information and initialize phyical memory manager
 fn initPmm(device_tree: fdt, alloc: std.mem.Allocator) !void {
 
-    var reserved = try std.ArrayList(pmm.MemoryRegion).initCapacity(alloc, 3);
+    var reserved = try std.ArrayList(pmm.MemBlock).initCapacity(alloc, 3);
 
     for (device_tree.mem_rsv_map.items) |block| {
         try reserved.append(alloc, .{
@@ -123,7 +123,7 @@ fn initPmm(device_tree: fdt, alloc: std.mem.Allocator) !void {
                     size_bytes], .big);
                 i += size_bytes;
 
-                const region = pmm.MemoryRegion {
+                const region = pmm.MemBlock {
                     .start = base_addr,
                     .end = base_addr + length,
                 };

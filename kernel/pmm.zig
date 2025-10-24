@@ -1,11 +1,32 @@
-//! Buddy allocator for managing phyical memory. TODO add spinlock for multicpu
+//! Global Buddy allocator for managing phyical memory. All add ram calls
+//! should be made before using the allocator functions
 
 const std = @import("std");
 const common = @import("common.zig");
+const SpinLock = @import("spinlock.zig");
 
-pub const MemoryRegion = struct {
+pub const MemBlock = struct {
     start: usize,
     end: usize,
+};
+
+/// Metadata for phyical page
+pub const Page = struct {
+
+    flags: struct {
+        /// Page is managed by pmm
+        free: u1,
+
+        /// Page is reserved (openSbi)
+        reserved: u1,
+    },
+
+    payload: union(enum) {
+        free: struct {
+            node: std.DoublyLinkedList.Node,
+            order: u8,
+        }
+    },
 };
 
 const Error = error {
@@ -13,132 +34,171 @@ const Error = error {
     MaxOrderExceeded,
 };
 
-/// Adds "ram" to the managed memory, cutting out all reserved regions
-pub fn addRam(ram: MemoryRegion, reserved: []const MemoryRegion) void {
-    var to_be_processed = ram;
+/// Add a new ram region to the phyical memory manager. Should not overlap with
+/// any previously added regions. This is not concurrently safe
+pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
 
-    while (to_be_processed.start < to_be_processed.end) {
-        const region_to_add = getNextUsableRegion(to_be_processed, reserved);
+    if (next_region >= MAX_REGIONS) {
+        return;
+    }
 
-        var current_page = common.pageUp(region_to_add.start);
-        const end_page = common.pageDown(region_to_add.end);
+    const start_ppn = common.pageUp(ram.start);
+    const end_ppn = common.pageDown(ram.end);
 
-        while (current_page < end_page) {
-            const remaining_length = end_page - current_page;
-            const alignment_order = @ctz(current_page);
-            const max_order = @min(
-                MAX_ORDER, 
-                std.math.log2_int(u64, remaining_length)
+    var first_after_reserved = start_ppn;
+
+    for (reserved) |entry| {
+        if (entry.start < ram.end and ram.start < entry.end) {
+            first_after_reserved = @max(
+                first_after_reserved,
+                common.pageUp(entry.end)
             );
-            const order = @min(alignment_order, max_order);
-
-            buddy_lists[order].insert(common.addrOfPage(current_page));
-            current_page += (@as(u64, 1) << order);
         }
+    }
 
-        to_be_processed.start = region_to_add.end;
+    const pages_needed = ( (end_ppn - start_ppn) * @sizeOf(Page) 
+        + common.PAGE_SIZE - 1) / common.PAGE_SIZE;
+
+    if (first_after_reserved + pages_needed > end_ppn) {
+        return; // there isnt enough room to store page metadata
+    }
+
+    const pages_ptr: [*]Page = @ptrFromInt(common.addrOfPage(first_after_reserved));
+
+    @memset(std.mem.sliceAsBytes(pages_ptr[0..end_ppn - start_ppn]), 0);
+
+    regions[next_region] = MemRegion {
+        .start_ppn = start_ppn,
+        .end_ppn = end_ppn,
+        .pages = pages_ptr,
+    };
+
+    next_region += 1;
+
+    for (reserved) |entry| {
+        for (common.pageDown(entry.start)..common.pageUp(entry.end)) |ppn| {
+            if (start_ppn <= ppn and ppn < end_ppn) {
+                const page = pageOfPpn(ppn) orelse unreachable;
+                page.flags.reserved = 1;
+                page.flags.free = 0;
+            }
+        }
+    }
+
+    for (start_ppn..end_ppn) |ppn| {
+        const page = pageOfPpn(ppn) orelse unreachable;
+        if (page.flags.reserved == 0) {
+            free(common.addrOfPage(ppn), 0);
+        }
     }
 }
 
-/// Allocates 2^order pages and returns base address of the region allocated or
-/// error on failure
-pub fn allocFrames(requested_order: usize) Error!usize {
+pub fn alloc(order: u56) Error!usize {
+    if (order > MAX_ORDER) {
+        return Error.MaxOrderExceeded;
+    }
 
-    if (requested_order > MAX_ORDER) return Error.MaxOrderExceeded;
+    lock.lock();
+    defer lock.unlock();
 
-    for (requested_order..MAX_ORDER + 1) |order| {
-        if (buddy_lists[order].next) |node| {
+    for (order..MAX_ORDER + 1) |order_to_try| {
+        if (buddy_lists[order_to_try].pop()) |node| {
+            const page: *Page = @fieldParentPtr("payload.free.node", node);
+            const ppn = ppnOfPage(page);
 
-            buddy_lists[order].next = node.next;
-            var current_order = order;
+            var current_order = order_to_try;
+            while (current_order > order) : (current_order -= 1) {
+                const buddy_ppn = ppn + (@as(u64, 1) << (current_order - 1));
+                const buddy_page = pageOfPpn(buddy_ppn) orelse unreachable;
 
-            while (current_order > requested_order) : (current_order -= 1) {
-                const half_size = common.PAGE_SIZE << (current_order - 1);
-                buddy_lists[current_order - 1].insert(
-                    @intFromPtr(node) + half_size
-                );
+                buddy_page.flags.free = 1;
+                buddy_page.payload.free.order = current_order - 1;
+                buddy_lists[current_order - 1].prepend(buddy_page.payload.free.node);
             }
 
-            return @intFromPtr(node);
+            page.flags.free = 0;
+            return common.addrOfPage(ppn);
         }
     }
 
     return Error.OutOfMemory;
 }
 
-/// frees 2^order pages starting at "base_addr"
-pub fn freeFrames(base_addr: usize, order: usize) void {
+pub fn free(base_addr: usize, order: u5) void {
     std.debug.assert(std.mem.isAligned(base_addr, common.PAGE_SIZE << order));
 
-    var to_insert = base_addr;
+    lock.lock();
+    defer lock.unlock();
 
-    for (order..MAX_ORDER) |current_order| {
-        const buddy_addr = to_insert ^ (common.PAGE_SIZE << current_order);
+    var current_ppn = common.pageDown(base_addr);
+    var current_order = order;
 
-        if (!buddy_lists[current_order].tryRemove(buddy_addr)) {
-            buddy_lists[current_order].insert(to_insert);
-            return;
-        }
+    while (current_order < MAX_ORDER) {
+        const buddy_ppn = current_ppn ^ (@as(u64, 1) << current_order);
+        const buddy_page = pageOfPpn(buddy_ppn) orelse break;
 
-        to_insert = @min(to_insert, buddy_addr);
-    }
-
-    buddy_lists[MAX_ORDER].insert(to_insert);
-}
-
-/// Return the first memory region in "free" that has no overlap with reserved
-fn getNextUsableRegion(free: MemoryRegion, reserved: []const MemoryRegion) 
-    MemoryRegion {
-    var start = free.start;
-    var end = free.end;
-    var changed = true;
-
-    while (changed and start < end) {
-        changed = false;
-
-        for (reserved) |unusable_region| {
-            if (unusable_region.start <= start and start < unusable_region.end) {
-                changed = true;
-                start = unusable_region.end;
-            }
-
-            if (start < unusable_region.start and unusable_region.start < end) {
-                changed = true;
-                end = unusable_region.start;
-            }
-        }
-    }
-
-    return MemoryRegion {
-        .start = start,
-        .end = @max(start, end),
-    };
-}
-
-const MAX_ORDER: usize = 10;
-
-const ListNode = struct {
-    next: ?*ListNode,
-
-    fn insert(self: *ListNode, buffer: usize) void {
-        var new_node: *ListNode = @ptrFromInt(buffer);
-        new_node.next = self.next;
-        self.next = new_node;
-    }
-
-    /// Try to remove node with "search_addr" and return true if successful
-    fn tryRemove(self: *ListNode, search_addr: usize) bool {
-        if (self.next) |node| {
-            if (@intFromPtr(node) == search_addr) {
-                self.next = node.next;
-                return true;
-            } else {
-                return node.tryRemove(search_addr);
-            }
+        if (buddy_page.flags.free == 1 and buddy_page.payload.free.order == current_order) {
+            buddy_lists[current_order].remove(&buddy_page.payload.free.node);
+            current_ppn = @min(current_ppn, buddy_ppn);
+            current_order += 1;
         } else {
-            return false;
+            break;
         }
+    }
+
+    const free_page = pageOfPpn(current_ppn) orelse unreachable;
+    free_page.flags.free = 1;
+    free_page.payload.free.order = current_order;
+    buddy_lists[current_order].prepend(&free_page.payload.free.node);
+}
+
+/// Return metadata for page starting at addr
+pub fn getPage(addr: usize) ?*Page {
+    std.debug.assert(std.mem.isAligned(addr, common.PAGE_SIZE));
+    return pageOfPpn(common.pageDown(addr));
+}
+
+/// Return phyical page number of given page struct
+fn ppnOfPage(page: *Page) u64 {
+    const casted: [*]Page = @ptrCast(page);
+
+    for (0..next_region) |idx| {
+        if (regions[idx].pages <= casted and casted < regions[idx].pages + regions[idx].len()) {
+            return (casted - regions[idx].pages) + regions[idx].start_ppn;
+        }
+    }
+
+    unreachable;
+}
+
+/// Return the page struct for given phyical page number
+fn pageOfPpn(ppn: u64) ?*Page {
+    for (0..next_region) |idx| {
+        if (regions[idx].start_ppn <= ppn and ppn < regions[idx].end_ppn) {
+            return &regions[idx].pages[ppn - regions[idx].start_ppn];
+        }
+    }
+
+    return null;
+}
+
+const MAX_REGIONS: usize = 5;
+var next_region: usize = 0;
+
+const MemRegion = struct {
+    start_ppn: u64,
+    end_ppn: u64,
+    pages: [*]Page,
+
+    fn len(self: *const MemRegion) usize {
+        return self.end_ppn - self.start_ppn;
     }
 };
 
-var buddy_lists: [MAX_ORDER + 1]ListNode = [_]ListNode{ListNode{.next = null }} ** (MAX_ORDER + 1);
+var regions: [MAX_REGIONS]MemRegion = undefined;
+
+const MAX_ORDER: usize = 10;
+var buddy_lists: [MAX_ORDER + 1]std.DoublyLinkedList = 
+    [_]std.DoublyLinkedList{ std.DoublyLinkedList{} } ** (MAX_ORDER + 1);
+
+var lock = SpinLock{};
