@@ -106,11 +106,14 @@ pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
     }
 }
 
-/// Allocate 2^order contiguous pages
+/// Allocate 2^order contiguous pages or return error on failure
 pub fn alloc(order: u8) Error!usize {
     if (order > MAX_ORDER) {
         return Error.MaxOrderExceeded;
     }
+
+    lock.lock();
+    defer lock.unlock();
 
     for (order..MAX_ORDER + 1) |order_to_try| {
         const node = buddy_lists[order_to_try].pop() orelse continue;
@@ -179,7 +182,8 @@ pub fn free(base_addr: usize, order: u8) void {
     buddy_lists[current_order].prepend(&chunk_page.state.free.node);
 }
 
-/// Return metadata for page starting at addr
+/// Return metadata for page starting at addr or null if this page is not
+/// managed by the pmm.
 pub fn pageOfAddr(addr: usize) ?*Page {
     std.debug.assert(std.mem.isAligned(addr, common.PAGE_SIZE));
     return pageOfPpn(common.pageDown(addr));
@@ -223,6 +227,7 @@ const MemRegion = struct {
     end_ppn: u64,
     pages: [*]Page,
 
+    /// Return number of pages in this memory region
     fn len(self: *const MemRegion) usize {
         return self.end_ppn - self.start_ppn;
     }
