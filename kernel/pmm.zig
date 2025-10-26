@@ -26,6 +26,15 @@ pub const Page = struct {
 
         /// Marked reserved according to device tree blob, should never be used
         reserved,
+
+        /// Allocated by kalloc, used to store slab metadata
+        kalloc: struct {
+            /// Link this into list of slabs
+            node: std.SinglyLinkedList.Node,
+
+            /// Free chunks within this page
+            free_list: std.SinglyLinkedList,
+        },
     },
 };
 
