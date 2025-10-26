@@ -1,44 +1,34 @@
-/// 64 KB
-const BOOT_STACK_SIZE: usize = 64 * (1 << 10);
-/// temp stack for booting
-var BOOT_STACK: [BOOT_STACK_SIZE]u8 align(16) = undefined;
-
 /// Setup boot stack for boot hart and jump to boot
 export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
     asm volatile (
-        \\ mv sp, %[stack_start]
-        \\ li t0, %[stack_size]
-        \\ add t0, sp, sp
+        \\ la sp, __stack_top
         \\ j boot
-        :
-        : [stack_start] "r" (&BOOT_STACK),
-          [stack_size] "i" (BOOT_STACK_SIZE)
     );
 }
 
-/// 1MB
-const EARLY_HEAP_SIZE: usize = 1 << 20;
-/// Early heap for boot sequence
-var EARLY_HEAP: [EARLY_HEAP_SIZE]u8 align(16) = undefined;
-
 const std = @import("std");
+
 const sbi = @import("sbi.zig");
 const fdt = @import("fdt.zig");
 const pmm = @import("pmm.zig");
 const exception = @import("exception.zig");
+const common = @import("common.zig");
+
+var BOOT_HEAP: [common.MB]u8 align(16) = undefined;
 
 /// rest of setup for the boot hart
 export fn boot(_: u64, flattened_device_tree: [*]const u64) noreturn {
-    clearBss(); // Must do this first, do not move this
+    zeroBss(); // Do not move this
 
-    exception.init(); // setup jump vector
+    exception.init(); // setup jump vector, maybe this should be later
 
-    var fa = std.heap.FixedBufferAllocator.init(&EARLY_HEAP);
+    var fa = std.heap.FixedBufferAllocator.init(&BOOT_HEAP);
     const early_allocator = fa.allocator();
 
-    const device_tree: fdt = fdt.parse(flattened_device_tree, early_allocator) catch |err| {
-        @panic(@errorName(err));
-    };
+    const device_tree: fdt = fdt.parse(flattened_device_tree, early_allocator)
+        catch |err| {
+            @panic(@errorName(err));
+        };
 
     if (!device_tree.header.isVerified()) {
         @panic("Bad fdt header!");
@@ -71,13 +61,11 @@ fn halt() noreturn {
 extern var __bss: u8;
 extern var __bss_end: u8;
 
-fn clearBss() void {
-    const bss_start = @intFromPtr(&__bss);
-    const bss_end = @intFromPtr(&__bss_end);
-    const bss_len = bss_end - bss_start;
-
-    const bss_slice = @as([*]u8, @ptrFromInt(bss_start))[0..bss_len];
-    @memset(bss_slice, 0);
+fn zeroBss() void {
+    const start: [*]u8 = @ptrCast(&__bss);
+    const end: [*]u8 = @ptrCast(&__bss_end);
+    const slice = start[0.. end - start];
+    @memset(slice, 0);
 }
 
 extern var __kstart: u8;

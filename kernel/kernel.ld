@@ -27,5 +27,10 @@ SECTIONS {
       __bss_end = .;
   } > kernel_space
 
+  .stack (NOLOAD) : ALIGN(CONSTANT(MAXPAGESIZE)) {
+    . = . + 64K;
+    __stack_top = .;
+  } > kernel_space
+
   __kend = .;
 }
