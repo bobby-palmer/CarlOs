@@ -21,8 +21,10 @@ fn alloc(_: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usiz
     const order = getAllocationOrder(len, alignment);
 
     if (order > MAX_ALLOCATION_ORDER) {
-        // Reroute to pmm
-        unreachable;
+        // Reroute directly to pmm
+        const page_order = getPageOrder(order);
+        const page_addr = pmm.alloc(page_order) catch return null;
+        return @ptrFromInt(page_addr);
     } else {
         // Use cache allocator
         unreachable;
@@ -37,8 +39,9 @@ fn free(_: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usi
     const order = getAllocationOrder(memory.len, alignment);
 
     if (order > MAX_ALLOCATION_ORDER) {
-        // Reroute to pmm
-        unreachable;
+        // Reroute directly to pmm
+        const page_order = getPageOrder(order);
+        pmm.free(memory.ptr, page_order);
     } else {
         // Use cache allocator
         unreachable;
@@ -64,6 +67,17 @@ fn getAllocationOrder(len: usize, alignment: std.mem.Alignment) u8 {
     const align_order = std.math.log2_int_ceil(usize, alignment.toByteUnits());
 
     return @max(len_order, align_order, MIN_ALLOCATION_ORDER);
+}
+
+/// Number of pages needed for 2^order bytes
+fn getPageOrder(byte_order: u8) u8 {
+    const page_order = std.math.log2_int(u32, common.PAGE_SIZE);
+
+    if (page_order > byte_order) {
+        return 0;
+    } else {
+        return byte_order - page_order;
+    }
 }
 
 /// List of linked Page structs in pmm.
