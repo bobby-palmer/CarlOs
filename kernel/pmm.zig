@@ -34,6 +34,9 @@ pub const Page = struct {
 
             /// Free chunks within this page
             free_list: std.SinglyLinkedList,
+
+            /// How many slots are allocated in this slab
+            in_use: usize,
         },
     },
 };
