@@ -1,5 +1,5 @@
-//! Global Buddy allocator for managing phyical memory. All add ram calls
-//! should be made before using the allocator functions
+//! Global Buddy allocator for managing phyical memory. Exposes *Page so kernel
+//! can store information about pages
 
 const std = @import("std");
 const common = @import("common.zig");
