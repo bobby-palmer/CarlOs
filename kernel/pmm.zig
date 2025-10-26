@@ -12,20 +12,20 @@ pub const MemBlock = struct {
 
 /// Metadata for phyical page
 pub const Page = struct {
+    state: union(enum) {
 
-    flags: struct {
-        /// Page is managed by pmm
-        free: u1,
+        /// Transitional page state ie. when being allocated and the buddy
+        /// allocator doesn't know the purpose of said allocation
+        none,
 
-        /// Page is reserved (openSbi and whatnot)
-        reserved: u1,
-    },
-
-    payload: union(enum) {
+        /// Header for page block that is managed by the buddy allocator
         free: struct {
             node: std.DoublyLinkedList.Node,
             order: u8,
-        }
+        },
+
+        /// Marked reserved according to device tree blob, should never be used
+        reserved,
     },
 };
 
@@ -41,6 +41,8 @@ pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
     if (next_region >= MAX_REGIONS) {
         return;
     }
+
+    // Calculate region info
 
     const start_ppn = common.pageUp(ram.start);
     const end_ppn = common.pageDown(ram.end);
@@ -63,9 +65,13 @@ pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
         return; // there isnt enough room to store page metadata
     }
 
+
     const pages_ptr: [*]Page = @ptrFromInt(common.addrOfPage(first_after_reserved));
 
-    @memset(std.mem.sliceAsBytes(pages_ptr[0..end_ppn - start_ppn]), 0);
+    // Default setup page metadata
+    for (0..end_ppn - start_ppn) |offset| {
+        pages_ptr[offset].state = .none;
+    }
 
     regions[next_region] = MemRegion {
         .start_ppn = start_ppn,
@@ -75,12 +81,12 @@ pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
 
     next_region += 1;
 
+    // Reserve memory
     for (reserved) |entry| {
         for (common.pageDown(entry.start)..common.pageUp(entry.end)) |ppn| {
             if (start_ppn <= ppn and ppn < end_ppn) {
                 const page = pageOfPpn(ppn) orelse unreachable;
-                page.flags.reserved = 1;
-                page.flags.free = 0;
+                page.state = .reserved;
             }
         }
     }
@@ -88,82 +94,100 @@ pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
     // Reserve memory used for page metadata
     for (0..pages_needed) |offset| {
         const page = pageOfPpn(first_after_reserved + offset) orelse unreachable;
-        page.flags.reserved = 1;
-        page.flags.free = 0;
+        page.state = .reserved;
     }
 
+    // Free all non-reserved memory
     for (start_ppn..end_ppn) |ppn| {
         const page = pageOfPpn(ppn) orelse unreachable;
-        if (page.flags.reserved == 0) {
+        if (page.state != .reserved) {
             free(common.addrOfPage(ppn), 0);
         }
     }
 }
 
+/// Allocate 2^order contiguous pages
 pub fn alloc(order: u8) Error!usize {
     if (order > MAX_ORDER) {
         return Error.MaxOrderExceeded;
     }
 
-    lock.lock();
-    defer lock.unlock();
-
     for (order..MAX_ORDER + 1) |order_to_try| {
-        if (buddy_lists[order_to_try].pop()) |node| {
-            const page: *Page = @fieldParentPtr("payload.free.node", node);
-            const ppn = ppnOfPage(page);
+        const node = buddy_lists[order_to_try].pop() orelse continue;
+        const page: *Page = @fieldParentPtr("state.free.node", node);
+        const ppn = ppnOfPage(page);
 
-            var current_order = order_to_try;
-            while (current_order > order) : (current_order -= 1) {
-                const buddy_ppn = ppn + (@as(u64, 1) << @intCast(current_order - 1));
-                const buddy_page = pageOfPpn(buddy_ppn) orelse unreachable;
+        var current_order = order_to_try;
 
-                buddy_page.flags.free = 1;
-                buddy_page.payload.free.order = current_order - 1;
-                buddy_lists[current_order - 1].prepend(buddy_page.payload.free.node);
-            }
+        while (current_order > order) : (current_order -= 1) {
+            const buddy_ppn = buddyOf(ppn, current_order - 1);
+            const buddy_page = pageOfPpn(buddy_ppn) orelse unreachable;
 
-            page.flags.free = 0;
-            return common.addrOfPage(ppn);
+            buddy_page.state = .{
+                .free = .{
+                    .order = current_order - 1,
+                    .node = .{}
+                }
+            };
+
+            buddy_lists[current_order - 1].prepend(&buddy_page.state.free.node);
         }
+
+        return common.addrOfPage(ppn);
     }
 
     return Error.OutOfMemory;
 }
 
+/// Free 2^order pages starting at base_addr
 pub fn free(base_addr: usize, order: u8) void {
     std.debug.assert(order <= MAX_ORDER);
-    std.debug.assert(std.mem.isAligned(base_addr, common.PAGE_SIZE << @intCast(order)));
+    std.debug.assert(std.mem.isAligned(
+            base_addr, 
+            @as(usize, common.PAGE_SIZE) << @intCast(order))
+    );
 
     lock.lock();
     defer lock.unlock();
 
-    var current_ppn = common.pageDown(base_addr);
+    var start_ppn = common.pageDown(base_addr);
     var current_order = order;
 
     while (current_order < MAX_ORDER) {
-        const buddy_ppn = current_ppn ^ (@as(u64, 1) << @intCast(current_order));
+        const buddy_ppn = buddyOf(start_ppn, current_order);
         const buddy_page = pageOfPpn(buddy_ppn) orelse break;
 
-        if (buddy_page.flags.free == 1 and buddy_page.payload.free.order == current_order) {
-            buddy_lists[current_order].remove(&buddy_page.payload.free.node);
-            current_ppn = @min(current_ppn, buddy_ppn);
+        if (buddy_page.state == .free and buddy_page.state.free.order == current_order) {
+            buddy_lists[current_order].remove(&buddy_page.state.free.node);
+
             current_order += 1;
+            start_ppn = @min(start_ppn, buddy_ppn);
         } else {
             break;
         }
     }
 
-    const free_page = pageOfPpn(current_ppn) orelse unreachable;
-    free_page.flags.free = 1;
-    free_page.payload.free.order = current_order;
-    buddy_lists[current_order].prepend(&free_page.payload.free.node);
+    const chunk_page = pageOfPpn(start_ppn) orelse unreachable;
+
+    chunk_page.state = .{
+        .free = .{
+            .order = current_order,
+            .node = .{}
+        }
+    };
+
+    buddy_lists[current_order].prepend(&chunk_page.state.free.node);
 }
 
 /// Return metadata for page starting at addr
-pub fn getPage(addr: usize) ?*Page {
+pub fn pageOfAddr(addr: usize) ?*Page {
     std.debug.assert(std.mem.isAligned(addr, common.PAGE_SIZE));
     return pageOfPpn(common.pageDown(addr));
+}
+
+/// Return the buddy ppn of a given ppn and order
+fn buddyOf(ppn: u64, order: u8) u64 {
+    return ppn ^ (@as(u64, 1) << @intCast(order));
 }
 
 /// Return phyical page number of given page struct
@@ -176,6 +200,7 @@ fn ppnOfPage(page: *Page) u64 {
         }
     }
 
+    // caller shouldn't have an invalid page pointer
     unreachable;
 }
 
@@ -205,7 +230,7 @@ const MemRegion = struct {
 
 var regions: [MAX_REGIONS]MemRegion = undefined;
 
-const MAX_ORDER: usize = 10;
+const MAX_ORDER: u8 = 10;
 var buddy_lists: [MAX_ORDER + 1]std.DoublyLinkedList = 
     [_]std.DoublyLinkedList{ std.DoublyLinkedList{} } ** (MAX_ORDER + 1);
 
