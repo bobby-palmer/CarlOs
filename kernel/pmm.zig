@@ -147,6 +147,7 @@ pub fn alloc(order: u8) Error!usize {
             buddy_lists[current_order - 1].prepend(&buddy_page.state.free.node);
         }
 
+        free_page_count -= @as(usize, 1) << @intCast(order);
         return common.addrOfPage(ppn);
     }
 
@@ -190,6 +191,7 @@ pub fn free(base_addr: usize, order: u8) void {
         }
     };
 
+    free_page_count += @as(usize, 1) << @intCast(order);
     buddy_lists[current_order].prepend(&chunk_page.state.free.node);
 }
 
@@ -198,6 +200,11 @@ pub fn free(base_addr: usize, order: u8) void {
 pub fn pageOfAddr(addr: usize) ?*Page {
     std.debug.assert(std.mem.isAligned(addr, common.PAGE_SIZE));
     return pageOfPpn(common.pageDown(addr));
+}
+
+/// Return the number of pages marked free and managed by the buddy allocator
+pub fn getFreePageCount() usize {
+    return free_page_count;
 }
 
 /// Return the buddy ppn of a given ppn and order
@@ -250,4 +257,5 @@ const MAX_ORDER: u8 = 10;
 var buddy_lists: [MAX_ORDER + 1]std.DoublyLinkedList = 
     [_]std.DoublyLinkedList{ std.DoublyLinkedList{} } ** (MAX_ORDER + 1);
 
+var free_page_count: usize = 0;
 var lock = SpinLock{};

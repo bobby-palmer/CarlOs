@@ -14,6 +14,7 @@ const pmm = @import("pmm.zig");
 const exception = @import("exception.zig");
 const common = @import("common.zig");
 const kalloc = @import("kalloc.zig");
+const console = @import("console.zig");
 
 /// Temporary heap to make easier to parse the fdt
 var BOOT_HEAP: [common.MB]u8 align(16) = undefined;
@@ -40,17 +41,9 @@ export fn boot(_: u64, flattened_device_tree: [*]const u64) noreturn {
         @panic(@errorName(err));
     };
 
-    // testing allocator
-    const dt2 = fdt.parse(flattened_device_tree, kalloc.allocator) 
-        catch |err| {
-            @panic(@errorName(err));
-    };
+    console.debug_writer.print("{x} pages added to pmm\n", .{pmm.getFreePageCount()}) catch {};
 
-    if (!dt2.header.isVerified()) {
-        @panic("IDEK");
-    }
-
-    _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};
+    console.debug_writer.print("Kmain finish\n", .{}) catch {};
 
     halt();
 }

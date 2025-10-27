@@ -117,23 +117,23 @@ pub const DebugConsole = struct {
     /// non-blocking SBI call and it may do partial/no writes if the debug
     /// console is not able to accept more bytes. If successful returns the
     /// number of bytes written
-    pub fn consoleWrite(message: []const u8) SbiError!isize {
-        return call(EID, 0x0, .{
+    pub fn consoleWrite(message: []const u8) SbiError!usize {
+        return @intCast(try call(EID, 0x0, .{
             .a0 = message.len,
             .a1 = @intFromPtr(message.ptr),
             .a2 = 0, // whole address fits in the first argument
-        });
+        }));
     }
 
     /// Read bytes from the debug console into an output memory. This is a
     /// non-blocking SBI call and it will not write anything into the output
     /// memory if there are no bytes to be read in the debug console.
-    pub fn consoleRead(buffer: []u8) SbiError!isize {
-        return call(EID, 0x1, .{
+    pub fn consoleRead(buffer: []u8) SbiError!usize {
+        return @intCast(try call(EID, 0x1, .{
             .a0 = buffer.len,
             .a1 = @intFromPtr(buffer.ptr),
             .a2 = 0, // Ditto
-        });
+        }));
     }
 
     /// Write a single byte to the debug console. This is a blocking SBI call

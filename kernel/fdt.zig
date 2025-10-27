@@ -44,7 +44,7 @@ pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !Fdt {
 }
 
 /// Free allocated memory used for parsing
-pub fn deinit(self: *const Fdt, allocator: std.mem.Allocator) void {
+pub fn deinit(self: *Fdt, allocator: std.mem.Allocator) void {
     self.root.deinit(allocator);
     self.mem_rsv_map.deinit(allocator);
 }
@@ -193,8 +193,8 @@ pub const StructNode = struct {
         };
     } // parse(...)
 
-    fn deinit(self: *const StructNode, allocator: std.mem.Allocator) void {
-        for (self.sub_nodes.items) |sub_node| {
+    fn deinit(self: *StructNode, allocator: std.mem.Allocator) void {
+        for (self.sub_nodes.items) |*sub_node| {
             sub_node.deinit(allocator);
         }
 
