@@ -13,6 +13,7 @@ const fdt = @import("fdt.zig");
 const pmm = @import("pmm.zig");
 const exception = @import("exception.zig");
 const common = @import("common.zig");
+const kalloc = @import("kalloc.zig");
 
 /// Temporary heap to make easier to parse the fdt
 var BOOT_HEAP: [common.MB]u8 align(16) = undefined;
@@ -38,6 +39,16 @@ export fn boot(_: u64, flattened_device_tree: [*]const u64) noreturn {
     initPmm(device_tree, early_allocator) catch |err| {
         @panic(@errorName(err));
     };
+
+    // testing allocator
+    const dt2 = fdt.parse(flattened_device_tree, kalloc.allocator) 
+        catch |err| {
+            @panic(@errorName(err));
+    };
+
+    if (!dt2.header.isVerified()) {
+        @panic("IDEK");
+    }
 
     _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};
 
@@ -77,6 +88,7 @@ extern var __kend: u8;
 fn initPmm(device_tree: fdt, alloc: std.mem.Allocator) !void {
 
     var reserved = try std.ArrayList(pmm.MemBlock).initCapacity(alloc, 3);
+    defer reserved.deinit(alloc);
 
     for (device_tree.mem_rsv_map.items) |block| {
         try reserved.append(alloc, .{

@@ -1,15 +1,19 @@
 //! Kernel memory allocator, created on top of the pmm to allocate non page
-//! sized memory. TODO add resize and remap later
+//! sized memory. TODO add resize and remap later!
 
 const std = @import("std");
 const pmm = @import("pmm.zig");
 const common = @import("common.zig");
 const SpinLock = @import("spinlock.zig");
 
+/// Global slab allocator that falls back to pmm for large allocations and uses
+/// a spin lock to be multicpu safe
 pub const allocator = std.mem.Allocator {
     .ptr = undefined,
-    .vtable = std.mem.Allocator.VTable {
+    .vtable = &std.mem.Allocator.VTable {
         .alloc = alloc,
+        .resize = std.mem.Allocator.noResize,
+        .remap = std.mem.Allocator.noRemap,
         .free = free,
     }
 };
@@ -51,7 +55,7 @@ fn alloc(_: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usiz
             var current_addr = slab_addr;
 
             while (current_addr < slab_addr + common.PAGE_SIZE) 
-                : (current_addr += @as(usize, 1) << order) {
+                : (current_addr += @as(usize, 1) << @intCast(order)) {
                 const node: *std.SinglyLinkedList.Node = @ptrFromInt(current_addr);
                 slab_page.state.kalloc.free_list.prepend(node);
             }
@@ -59,10 +63,7 @@ fn alloc(_: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usiz
 
         const slab_node = allocation_caches[cache_idx].first orelse unreachable;
 
-        const slab_page: *pmm.Page = @fieldParentPtr(
-            "state.kalloc.node",
-            slab_node
-        );
+        const slab_page = common.nestedFieldParentPtr(pmm.Page, &[_][]const u8{"state", "kalloc", "node"}, slab_node);
 
         const slab_slot = slab_page.state.kalloc.free_list.popFirst() 
             orelse unreachable;
@@ -73,7 +74,7 @@ fn alloc(_: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usiz
             _ = allocation_caches[cache_idx].popFirst();
         }
 
-        return @intCast(slab_slot);
+        return @ptrCast(slab_slot);
     }
 }
 
@@ -87,7 +88,7 @@ fn free(_: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usi
     if (order > MAX_ALLOCATION_ORDER) {
 
         const page_order = getPageOrder(order);
-        pmm.free(memory.ptr, page_order);
+        pmm.free(@intFromPtr(memory.ptr), page_order);
 
     } else {
 
@@ -116,7 +117,7 @@ fn free(_: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usi
                 allocation_caches[cache_idx].prepend(&slab_page.state.kalloc.node);
             }
 
-            slab_page.state.kalloc.free_list.prepend(@ptrCast(memory.ptr));
+            slab_page.state.kalloc.free_list.prepend(@ptrCast(@alignCast(memory.ptr)));
         }
 
     }

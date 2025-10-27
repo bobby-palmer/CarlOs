@@ -128,18 +128,18 @@ pub fn alloc(order: u8) Error!usize {
 
     for (order..MAX_ORDER + 1) |order_to_try| {
         const node = buddy_lists[order_to_try].pop() orelse continue;
-        const page: *Page = @fieldParentPtr("state.free.node", node);
+        const page: *Page = common.nestedFieldParentPtr(Page, &[_][]const u8{"state", "free", "node"}, node);
         const ppn = ppnOfPage(page);
 
         var current_order = order_to_try;
 
         while (current_order > order) : (current_order -= 1) {
-            const buddy_ppn = buddyOf(ppn, current_order - 1);
+            const buddy_ppn = buddyOf(ppn, @intCast(current_order - 1));
             const buddy_page = pageOfPpn(buddy_ppn) orelse unreachable;
 
             buddy_page.state = .{
                 .free = .{
-                    .order = current_order - 1,
+                    .order = @intCast(current_order - 1),
                     .node = .{}
                 }
             };
@@ -207,11 +207,11 @@ fn buddyOf(ppn: u64, order: u8) u64 {
 
 /// Return phyical page number of given page struct
 fn ppnOfPage(page: *Page) u64 {
-    const casted: [*]Page = @ptrCast(page);
+    const addr = @intFromPtr(page);
 
     for (0..next_region) |idx| {
-        if (regions[idx].pages <= casted and casted < regions[idx].pages + regions[idx].len()) {
-            return (casted - regions[idx].pages) + regions[idx].start_ppn;
+        if (@intFromPtr(regions[idx].pages) <= addr and addr < @intFromPtr(regions[idx].pages + regions[idx].len())) {
+            return (@as([*]Page, @ptrCast(page)) - regions[idx].pages) + regions[idx].start_ppn;
         }
     }
 
