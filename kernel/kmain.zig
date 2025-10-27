@@ -48,8 +48,7 @@ export fn boot(_: u64, flattened_device_tree: [*]const u64) noreturn {
     halt();
 }
 
-/// Simple global panic handler to print out a message
-// TODO add backtrace
+/// Set global panic handler.
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) 
     noreturn {
     _ = sbi.DebugConsole.consoleWrite(message) catch {};

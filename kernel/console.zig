@@ -28,5 +28,6 @@ pub const SbiWriter = struct {
     }
 };
 
-/// Temporary debug writer for early stage writing info to screen
+/// Temporary debug writer for early stage writing info to screen. Will
+/// probably get removed later.
 pub var debug_writer = SbiWriter.writer(&.{});

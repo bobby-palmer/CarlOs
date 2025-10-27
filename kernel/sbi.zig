@@ -1,5 +1,4 @@
 //! API implemented based on https://lists.riscv.org/g/tech-brs/attachment/361/0/riscv-sbi.pdf
-// TODO implement IPI and other needed for full functionality
 
 const SbiError = error {
     SBI_ERR_FAILED,
