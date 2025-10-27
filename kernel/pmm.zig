@@ -14,11 +14,10 @@ pub const MemBlock = struct {
 pub const Page = struct {
     state: union(enum) {
 
-        /// Transitional page state ie. when being allocated and the buddy
-        /// allocator doesn't know the purpose of said allocation
+        /// Transitional page state
         none,
 
-        /// Header for page block that is managed by the buddy allocator
+        /// Header for page series that is managed by the buddy allocator
         free: struct {
             node: std.DoublyLinkedList.Node,
             order: u8,
