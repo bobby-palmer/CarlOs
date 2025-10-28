@@ -1,3 +1,5 @@
+//! Module of commonly used interfaces and constants
+
 const std = @import("std");
 
 pub const KB: u32 = 1 << 10;
@@ -38,3 +40,19 @@ pub fn nestedFieldParentPtr(
         );
     }
 }
+
+pub const PageFrameAllocator = struct {
+    context: *anyopaque,
+    vtable: struct {
+        alloc: fn (*anyopaque, usize) ?usize,
+        free: fn (*anyopaque, usize, usize) void,
+    },
+
+    pub fn alloc(self: *const @This(), num_pages: usize) error{OutOfMemory}!usize {
+        return self.vtable.alloc(self.context, num_pages) orelse return error.OutOfMemory;
+    }
+
+    pub fn free(self: *const @This(), base_addr: usize, num_pages: usize) void {
+        self.vtable.free(self.context, base_addr, num_pages);
+    }
+};
