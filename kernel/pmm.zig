@@ -3,7 +3,7 @@
 
 const std = @import("std");
 const common = @import("common.zig");
-const SpinLock = @import("spinlock.zig");
+const SpinLock = @import("Spinlock.zig");
 
 pub const MemBlock = struct {
     start: usize,
