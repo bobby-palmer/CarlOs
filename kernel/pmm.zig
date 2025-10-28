@@ -40,11 +40,6 @@ pub const Page = struct {
     },
 };
 
-const Error = error {
-    OutOfMemory,
-    MaxOrderExceeded,
-};
-
 /// Add a new ram region to the phyical memory manager. Should not overlap with
 /// any previously added regions. This is not concurrently safe
 pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
@@ -118,10 +113,8 @@ pub fn addRam(ram: MemBlock, reserved: []const MemBlock) void {
 }
 
 /// Allocate 2^order contiguous pages or return error on failure
-pub fn alloc(order: u8) Error!usize {
-    if (order > MAX_ORDER) {
-        return Error.MaxOrderExceeded;
-    }
+pub fn alloc(order: u8) error{OutOfMemory}!usize {
+    std.debug.assert(order <= MAX_ORDER);
 
     lock.lock();
     defer lock.unlock();
@@ -151,7 +144,7 @@ pub fn alloc(order: u8) Error!usize {
         return common.addrOfPage(ppn);
     }
 
-    return Error.OutOfMemory;
+    return error.OutOfMemory;
 }
 
 /// Free 2^order pages starting at base_addr

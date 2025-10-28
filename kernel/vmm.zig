@@ -42,7 +42,9 @@ pub const Flags = packed struct {
     D: u1 = 0,
 };
 
-/// Initialize new empty page table
+/// All virtual addresses must be less than this.
+pub const MAX_VA: usize = 1 << (9 + 9 + 9 + 12);
+
 pub fn create() !*PageTable {
     const addr = try pmm.alloc(0);
     const ptr: *PageTable = @ptrFromInt(addr);
@@ -52,7 +54,6 @@ pub fn create() !*PageTable {
     return ptr;
 }
 
-/// Free resources (table and pages they point to) from a pagetable
 pub fn destroy(pt: *PageTable) void {
     for (pt.entries) |entry| {
         if (entry.flags.V == 1) {
@@ -68,7 +69,6 @@ pub fn destroy(pt: *PageTable) void {
     pmm.free(@intFromPtr(pt), 0);
 }
 
-/// Map a single phyical to virtual page
 pub fn map(pt: *PageTable, vaddr: usize, paddr: usize, flags: Flags) !void {
     std.debug.assert(std.mem.isAligned(vaddr, common.PAGE_SIZE));
     std.debug.assert(std.mem.isAligned(paddr, common.PAGE_SIZE));
@@ -77,15 +77,14 @@ pub fn map(pt: *PageTable, vaddr: usize, paddr: usize, flags: Flags) !void {
     unreachable;
 }
 
-/// Unmap a single virtual page in pagetable
-// TODO maybe not error?
 pub fn unmap(pt: *PageTable, vaddr: usize) !void {
     _ = pt;
     _ = vaddr;
     unreachable;
 }
 
-fn walkAndAllocate(pt: *PageTable, vaddr: usize) !*PageTableEntry {
+/// Get the page table entry for vaddr if it exists
+fn walk(pt: *PageTable, vaddr: usize) ?*PageTableEntry {
 
 }
 
