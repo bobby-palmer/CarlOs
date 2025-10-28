@@ -1,4 +1,4 @@
-//! Virtual memory manager using RISC-V Sv39
+//! Virtual memory manager using RISC-V Sv39. TODO should call pager instead of pmm to request pages
 
 const std = @import("std");
 const common = @import("common.zig");
@@ -45,6 +45,7 @@ pub const Flags = packed struct {
 /// All virtual addresses must be less than this.
 pub const MAX_VA: usize = 1 << (9 + 9 + 9 + 12);
 
+/// Create an empty pagetable
 pub fn create() !*PageTable {
     const addr = try pmm.alloc(0);
     const ptr: *PageTable = @ptrFromInt(addr);
@@ -60,8 +61,7 @@ pub fn destroy(pt: *PageTable) void {
             if (entry.flags.R | entry.flags.W | entry.flags.X == 0) {
                 destroy(@ptrFromInt(common.addrOfPage(entry.ppn)));
             } else {
-                // phyical page mapping. Separate function?
-                unreachable;
+                // TODO call subsystem for writeback
             }
         }
     }
@@ -70,22 +70,72 @@ pub fn destroy(pt: *PageTable) void {
 }
 
 pub fn map(pt: *PageTable, vaddr: usize, paddr: usize, flags: Flags) !void {
+    std.debug.assert(vaddr < MAX_VA);
     std.debug.assert(std.mem.isAligned(vaddr, common.PAGE_SIZE));
     std.debug.assert(std.mem.isAligned(paddr, common.PAGE_SIZE));
-    _ = pt;
-    _ = flags;
-    unreachable;
+
+    const pte = try walkAndAllocate(pt, vaddr);
+
+    if (pte.flags.V == 1) {
+        return error.AlreadyMapped;
+    }
+
+    pte.flags = flags;
+    pte.ppn = common.pageDown(paddr);
 }
 
-pub fn unmap(pt: *PageTable, vaddr: usize) !void {
-    _ = pt;
-    _ = vaddr;
-    unreachable;
+pub fn unmap(pt: *PageTable, vaddr: usize) error{MappingNotFound}!void {
+    std.debug.assert(vaddr < MAX_VA);
+    std.debug.assert(std.mem.isAligned(vaddr, common.PAGE_SIZE));
+
+    const pte = walk(pt, vaddr) orelse return error.MappingNotFound;
+
+    // TODO writeback for dirty pages
+
+    pte.flags.V = 0;
 }
 
 /// Get the page table entry for vaddr if it exists
 fn walk(pt: *PageTable, vaddr: usize) ?*PageTableEntry {
+    var current_pt = pt;
+    var level = 2;
 
+    while (level > 0) : (level -= 1) {
+        const pte = &current_pt.entries[vpn(vaddr, level)];
+
+        if (pte.flags.V == 1) {
+            current_pt = @ptrFromInt(common.addrOfPage(pte.ppn));
+        } else {
+            return null;
+        }
+    }
+
+    return &current_pt.entries[vpn(vaddr, 0)];
+}
+
+/// Get page table entry for vaddr allocating page table levels if necessary
+fn walkAndAllocate(pt: *PageTable, vaddr: usize) !*PageTableEntry {
+    var current_pt = pt;
+    var level = 2;
+
+    while (level > 0) : (level -= 1) {
+        const pte = &current_pt.entries[vpn(vaddr, level)];
+
+        if (pte.flags.V == 0) {
+            const next_pt = try create();
+
+            pte.flags.V = 1;
+            pte.ppn = @intCast(common.pageDown(@intFromPtr(next_pt)));
+        }
+
+        current_pt = @ptrFromInt(common.addrOfPage(pte.ppn));
+    }
+
+    return &current_pt.entries[vpn(vaddr, 0)];
+}
+
+inline fn vpn(vaddr: usize, level: usize) usize {
+    return (vaddr >> @intCast(12 + level * 9));
 }
 
 /// Sv39 page table entry
