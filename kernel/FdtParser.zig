@@ -1,5 +1,6 @@
-/// Fdt parser following https://devicetree-specification.readthedocs.io/en/stable/flattened-format.html
-const Fdt = @This();
+/// Fdt parser following
+/// https://devicetree-specification.readthedocs.io/en/stable/flattened-format.html
+const FdtParser = @This();
 
 const std = @import("std");
 
@@ -8,7 +9,7 @@ root: StructNode,
 mem_rsv_map: std.ArrayList(MemoryReservation),
 
 /// Parse fdt
-pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !Fdt {
+pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !FdtParser {
     const header = Header.from_fdt(fdt);
 
     const strings = Strings {
@@ -36,7 +37,7 @@ pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !Fdt {
         });
     }
 
-    return Fdt {
+    return FdtParser {
         .header = header,
         .root = root,
         .mem_rsv_map = mem_rsv_lst
@@ -44,7 +45,7 @@ pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !Fdt {
 }
 
 /// Free allocated memory used for parsing
-pub fn deinit(self: *Fdt, allocator: std.mem.Allocator) void {
+pub fn deinit(self: *FdtParser, allocator: std.mem.Allocator) void {
     self.root.deinit(allocator);
     self.mem_rsv_map.deinit(allocator);
 }
