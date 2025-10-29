@@ -8,11 +8,21 @@ export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
 
 const std = @import("std");
 const sbi = @import("sbi.zig");
+const common = @import("common.zig");
+const FdtParser = @import("FdtParser.zig");
 
+var BOOT_HEAP: [common.MB] u8 align(16) = undefined;
 
 /// rest of setup for the boot hart
-export fn boot(_: u64, _: [*]const u64) noreturn {
+export fn boot(_: u64, fdt: [*]const u64) noreturn {
     zeroBss(); // Do not move this, code expects defaults to be zeroed
+
+    const fa = std.heap.FixedBufferAllocator.init(&BOOT_HEAP);
+    const alloc = fa.allocator();
+
+    const parser = FdtParser.parse(fdt, alloc) catch {
+        @panic("Fail to parse file device tree");
+    };
 
     _ = sbi.DebugConsole.consoleWrite("Kmain boot") catch {};
     halt();
@@ -32,12 +42,9 @@ fn halt() noreturn {
     }
 }
 
-extern var __bss: u8;
-extern var __bss_end: u8;
-
 fn zeroBss() void {
-    const start: [*]u8 = @ptrCast(&__bss);
-    const end: [*]u8 = @ptrCast(&__bss_end);
+    const start = @extern([*]u8, .{ .name = "__bss"});
+    const end = @extern([*]u8, .{ .name = "__bss_end"});
     const slice = start[0.. end - start];
     @memset(slice, 0);
 }
