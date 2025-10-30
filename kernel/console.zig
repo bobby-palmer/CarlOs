@@ -5,7 +5,7 @@ const sbi = @import("sbi.zig");
 
 const Writer = std.io.Writer;
 
-pub const SbiWriter = struct {
+pub const Sbi = struct {
     
     /// Constuct a writer that prints to OpenSBI debug console
     pub fn writer(buffer: []u8) Writer {
@@ -30,4 +30,4 @@ pub const SbiWriter = struct {
 
 /// Temporary debug writer for early stage writing info to screen. Will
 /// probably get removed later.
-pub var debug_writer = SbiWriter.writer(&.{});
+pub var debug_writer = Sbi.writer(&.{});
