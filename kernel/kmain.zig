@@ -17,12 +17,16 @@ var BOOT_HEAP: [common.MB] u8 align(16) = undefined;
 export fn boot(_: u64, fdt: [*]const u64) noreturn {
     zeroBss(); // Do not move this, code expects defaults to be zeroed
 
-    const fa = std.heap.FixedBufferAllocator.init(&BOOT_HEAP);
+    var fa = std.heap.FixedBufferAllocator.init(&BOOT_HEAP);
     const alloc = fa.allocator();
 
     const parser = FdtParser.parse(fdt, alloc) catch {
-        @panic("Fail to parse file device tree");
+        @panic("Fail to parse flattened device tree");
     };
+
+    if (!parser.header.isVerified()) {
+        @panic("Fail to verify device tree header");
+    }
 
     _ = sbi.DebugConsole.consoleWrite("Kmain boot") catch {};
     halt();
