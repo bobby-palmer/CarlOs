@@ -3,10 +3,11 @@
 const FdtParser = @This();
 
 const std = @import("std");
+const common = @import("common.zig");
 
 header: Header,
 root: StructNode,
-mem_rsv_map: std.ArrayList(MemoryReservation),
+mem_rsv_map: std.ArrayList(common.MemoryRegion),
 
 /// Parse fdt
 pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !FdtParser {
@@ -21,19 +22,19 @@ pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !FdtParser {
     const root, _ = try StructNode.parse(words, &strings, alloc);
 
     var mem_rsv_head = fdt + header.off_mem_rsvmap / @sizeOf(u64);
-    var mem_rsv_lst = try std.ArrayList(MemoryReservation).initCapacity(alloc, 10);
+    var mem_rsv_lst = try std.ArrayList(common.MemoryRegion).initCapacity(alloc, 10);
 
     while (true) {
-        const addr = std.mem.bigToNative(u64, mem_rsv_head[0]);
+        const start = std.mem.bigToNative(u64, mem_rsv_head[0]);
         mem_rsv_head += 1;
-        const size = std.mem.bigToNative(u64, mem_rsv_head[0]);
+        const len = std.mem.bigToNative(u64, mem_rsv_head[0]);
         mem_rsv_head += 1;
 
-        if (addr == 0 and size == 0) break;
+        if (start == 0 and len == 0) break;
 
-        _ = try mem_rsv_lst.append(alloc, MemoryReservation { 
-            .address = addr, 
-            .size = size 
+        _ = try mem_rsv_lst.append(alloc, common.MemoryRegion { 
+            .start = start, 
+            .len = len 
         });
     }
 
@@ -214,8 +215,3 @@ const Strings = struct {
     } // offToStr(...)
 
 }; // Strings
-
-pub const MemoryReservation = struct {
-    address: u64,
-    size: u64,
-}; // MemoryReservation

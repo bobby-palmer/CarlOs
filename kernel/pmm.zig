@@ -70,7 +70,7 @@ pub fn addRam(
 
     regions[next_region_idx].pages = 
         @as([*]Page, 
-            @ptrCast(common.addrOfPage(first_free_page))
+            @ptrFromInt(common.addrOfPage(first_free_page))
         )[0..(end_ppn - start_ppn)];
 
     next_region_idx += 1;
@@ -176,7 +176,7 @@ pub fn free(page: *Page) void {
         const buddy_ppn = buddyOf(page_to_free.ppn, current_order);
         const buddy_page = pageOfPpn(buddy_ppn) orelse break;
 
-        std.debug.assert(buddy_page.flags.is_head);
+        std.debug.assert(buddy_page.flags.is_head == 1);
 
         if (buddy_page.flags.free == 0 or 
             buddy_page.order != current_order) break;
