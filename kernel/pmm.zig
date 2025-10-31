@@ -17,12 +17,13 @@ pub const Page = struct {
     flags: struct {
         reserved: u1,
         free: u1,
+        is_head: u1,
     },
 
     /// how many pages are in this group (allocated or free)
     order: u8,
 
-    /// Phyical page number for this metadata. This shouldn't be modified
+    /// Phyical page number for this metadata.
     ppn: u64,
 
     /// Contextual info with each field corresponding to data for a specific
@@ -82,6 +83,8 @@ pub fn addRam(
 
         page.flags.free = 0;
         page.flags.reserved = 0;
+        page.flags.is_head = 1;
+
         page.order = 0;
         page.ppn = ppn;
     }
@@ -111,7 +114,9 @@ pub fn addRam(
 /// Allocate 2^order pages or error on failure. Return struct for the first in
 /// the region
 pub fn alloc(order: u8) error{OutOfMemory}!*Page {
-    std.debug.assert(order <= MAX_ORDER);
+    if (order > MAX_ORDER) {
+        @panic("pmm MAX_ORDER exceeded");
+    }
 
     lock.lock();
     defer lock.unlock();
@@ -128,11 +133,13 @@ pub fn alloc(order: u8) error{OutOfMemory}!*Page {
                 const buddy_page = pageOfPpn(buddy_ppn) orelse unreachable;
 
                 buddy_page.flags.free = 1;
+                buddy_page.flags.is_head = 1;
                 buddy_page.order = @intCast(current_order - 1);
                 buddy_lists[current_order - 1].append(&buddy_page.data.pmm.buddy_link);
             }
 
             page.flags.free = 0;
+            page.flags.is_head = 1;
             page.order = order;
             return page;
         }
@@ -148,8 +155,18 @@ pub fn allocPage() error{OutOfMemory}!*Page {
 
 /// Free 2^order pages. Must be called on page returned by alloc!
 pub fn free(page: *Page) void {
-    std.debug.assert(page.flags.free == 0);
-    std.debug.assert(page.flags.reserved == 0);
+
+    if (page.flags.is_head == 0) {
+        @panic("free called on page that isnt begin of allocation");
+    }
+
+    if (page.flags.free == 1) {
+        @panic("Double free on page");
+    }
+
+    if (page.flags.reserved == 1) {
+        @panic("Free called on reserved region");
+    }
 
     lock.lock();
     defer lock.unlock();
@@ -161,12 +178,13 @@ pub fn free(page: *Page) void {
         const buddy_ppn = buddyOf(page_to_free.ppn, current_order);
         const buddy_page = pageOfPpn(buddy_ppn) orelse break;
 
+        std.debug.assert(buddy_page.flags.is_head);
+
         if (buddy_page.flags.free == 0 or 
             buddy_page.order != current_order) break;
 
-        std.debug.assert(buddy_page.flags.reserved == 0);
-
-        buddy_lists[current_order].remove(&buddy_page.data.pmm.buddy_link);
+        page_to_free.flags.is_head = 0;
+        buddy_page.flags.is_head = 0;
 
         if (buddy_page.ppn < page_to_free.ppn) {
             page_to_free = buddy_page;
@@ -176,8 +194,17 @@ pub fn free(page: *Page) void {
     }
 
     page_to_free.flags.free = 1;
+    page_to_free.flags.is_head = 1;
     page_to_free.order = current_order;
     buddy_lists[current_order].append(&page_to_free.data.pmm.buddy_link);
+}
+
+/// Return page metadata for page starting at address, if it exists
+pub fn pageOfAddress(address: usize) ?*Page {
+    if (!std.mem.isAligned(address, common.PAGE_SIZE)) {
+        @panic("Invalid page start address");
+    }
+    return pageOfPpn(common.pageDown(address));
 }
 
 fn pageOfPpn(ppn: u64) ?*Page {
