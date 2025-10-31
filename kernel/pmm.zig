@@ -36,6 +36,11 @@ pub const Page = struct {
     pub fn startAddr(self: *const Page) usize {
         return common.addrOfPage(self.ppn);
     }
+
+    /// Return length in bytes of this allocation
+    pub fn size(self: *const Page) usize {
+        return common.PAGE_SIZE * (@as(usize, 1) << self.order);
+    }
 };
 
 /// Add a contiguous region of ram to the phyical memory manager, marking
@@ -122,7 +127,7 @@ pub fn alloc(order: u8) error{OutOfMemory}!*Page {
     for (order..MAX_ORDER + 1) |order_to_try| {
         if (buddy_lists[order_to_try].pop()) |node| {
             const page = common.nestedFieldParentPtr(
-                Page, [_]u8{"data", "pmm", "buddy_link"}, node);
+                Page, &.{"data", "pmm", "buddy_link"}, node);
 
             var current_order = order_to_try;
 
@@ -176,6 +181,7 @@ pub fn free(page: *Page) void {
         const buddy_ppn = buddyOf(page_to_free.ppn, current_order);
         const buddy_page = pageOfPpn(buddy_ppn) orelse break;
 
+        // Shouldn't be possible to join with another since this is its buddy
         std.debug.assert(buddy_page.flags.is_head == 1);
 
         if (buddy_page.flags.free == 0 or 
