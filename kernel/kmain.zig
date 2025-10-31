@@ -33,9 +33,6 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
         @panic("Fail to init pmm");
     };
 
-    const p = pmm.alloc(3) catch { @panic("Bad"); };
-    pmm.free(p);
-
     _ = sbi.DebugConsole.consoleWrite("Kmain boot") catch {};
     halt();
 }
