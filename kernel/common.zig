@@ -22,6 +22,16 @@ pub fn addrOfPage(page: u64) usize {
     return page * PAGE_SIZE;
 }
 
+/// Generic memory block representation
+pub const MemoryRegion = struct {
+    start: usize,
+    len: usize,
+
+    pub fn end(self: *const MemoryRegion) usize {
+        return self.start + self.len;
+    }
+};
+
 /// Recursively get parent of nested pointer
 pub fn nestedFieldParentPtr(
     comptime T: type,

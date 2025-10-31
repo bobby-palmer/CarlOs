@@ -124,8 +124,6 @@ pub fn getEntryAlloc(
 
         } else {
             const next_level = try init(alloc);
-
-            // TODO assert allignment
             pte.flags = .{};
             pte.ppn = common.pageDown(@intFromPtr(next_level));
             pt = next_level;
