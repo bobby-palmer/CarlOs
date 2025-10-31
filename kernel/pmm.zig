@@ -181,6 +181,8 @@ pub fn free(page: *Page) void {
         if (buddy_page.flags.free == 0 or 
             buddy_page.order != current_order) break;
 
+        buddy_lists[current_order].remove(&buddy_page.data.pmm.buddy_link);
+
         page_to_free.flags.is_head = 0;
         buddy_page.flags.is_head = 0;
 
