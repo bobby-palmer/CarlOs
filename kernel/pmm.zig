@@ -1,4 +1,6 @@
-//! Global free page buddy allocator, and metadata manager
+//! Global free page buddy allocator, and metadata manager. 
+//!
+//! TODO change asserts to be kernel panics in all modes
 
 const std = @import("std");
 const common = @import("common.zig");
@@ -17,19 +19,24 @@ pub const Page = struct {
         free: u1,
     },
 
+    /// how many pages are in this group (allocated or free)
+    order: u8,
+
     /// Phyical page number for this metadata. This shouldn't be modified
     ppn: u64,
 
     /// Contextual info with each field corresponding to data for a specific
     /// component
     data: union {
-
-        /// State of free page block managed by pmm
         pmm: struct {
             buddy_link: std.DoublyLinkedList.Node,
-            order: u8,
         },
     },
+
+    /// The start address of this page
+    pub fn startAddr(self: *const Page) usize {
+        return common.addrOfPage(self.ppn);
+    }
 };
 
 /// Add a contiguous region of ram to the phyical memory manager, marking
@@ -75,6 +82,7 @@ pub fn addRam(
 
         page.flags.free = 0;
         page.flags.reserved = 0;
+        page.order = 0;
         page.ppn = ppn;
     }
 
@@ -95,37 +103,66 @@ pub fn addRam(
         const page = pageOfPpn(ppn) orelse unreachable;
 
         if (page.flags.reserved == 0) {
-            freePage(page);
+            free(page);
         }
     }
 }
 
 /// Allocate 2^order pages or error on failure. Return struct for the first in
 /// the region
-pub fn alloc(order: u8) !*Page {
+pub fn alloc(order: u8) error{OutOfMemory}!*Page {
     std.debug.assert(order <= MAX_ORDER);
+
+    lock.lock();
+    defer lock.unlock();
+
+    for (order..MAX_ORDER + 1) |order_to_try| {
+        if (buddy_lists[order_to_try].pop()) |node| {
+            const page = common.nestedFieldParentPtr(
+                Page, [_]u8{"data", "pmm", "buddy_link"}, node);
+
+            var current_order = order_to_try;
+
+            while (current_order > order) : (current_order -= 1) {
+                const buddy_ppn = buddyOf(page.ppn, @intCast(current_order - 1));
+                const buddy_page = pageOfPpn(buddy_ppn) orelse unreachable;
+
+                buddy_page.flags.free = 1;
+                buddy_page.order = @intCast(current_order - 1);
+                buddy_lists[current_order - 1].append(&buddy_page.data.pmm.buddy_link);
+            }
+
+            page.flags.free = 0;
+            page.order = order;
+            return page;
+        }
+    }
+
+    return error.OutOfMemory;
 }
 
 /// Alloc with order 0
-pub fn allocPage() !*Page {
+pub fn allocPage() error{OutOfMemory}!*Page {
     return alloc(0);
 }
 
-/// Free 2^order pages.
-pub fn free(page: *Page, order: u8) void {
-    std.debug.assert(order <= MAX_ORDER);
-    std.debug.assert(page.flags.free == 0); // TODO double free detection
+/// Free 2^order pages. Must be called on page returned by alloc!
+pub fn free(page: *Page) void {
+    std.debug.assert(page.flags.free == 0);
     std.debug.assert(page.flags.reserved == 0);
 
+    lock.lock();
+    defer lock.unlock();
+
     var page_to_free = page;
-    var current_order = order;
+    var current_order = page.order;
 
     while (current_order < MAX_ORDER) {
         const buddy_ppn = buddyOf(page_to_free.ppn, current_order);
         const buddy_page = pageOfPpn(buddy_ppn) orelse break;
 
         if (buddy_page.flags.free == 0 or 
-            buddy_page.data.pmm.order != current_order) break;
+            buddy_page.order != current_order) break;
 
         std.debug.assert(buddy_page.flags.reserved == 0);
 
@@ -139,13 +176,8 @@ pub fn free(page: *Page, order: u8) void {
     }
 
     page_to_free.flags.free = 1;
-    page_to_free.data.pmm.order = current_order;
-    buddy_lists[current_order].prepend(&page_to_free.data.pmm.buddy_link);
-}
-
-/// Free with order 0
-pub fn freePage(page: *Page) void {
-    free(page, 0);
+    page_to_free.order = current_order;
+    buddy_lists[current_order].append(&page_to_free.data.pmm.buddy_link);
 }
 
 fn pageOfPpn(ppn: u64) ?*Page {
