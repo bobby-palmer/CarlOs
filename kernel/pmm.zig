@@ -1,55 +1,23 @@
-//! Global free page manager. 
-//!
-//! TODO :
-//! - Add a contiguous portion to the manager and add api for allocating
-//!   contiguous ram
+//! Global free page buddy allocator, and metadata manager
 
 const std = @import("std");
 const common = @import("common.zig");
 const Spinlock = @import("Spinlock.zig");
 
-pub fn addRam(start: usize, end: usize) void {
-    lock.lock();
-    defer lock.unlock();
+/// Similar to linux struct Page {} this is used to hold various metadatas
+/// depending on what component owns the page
+pub const Page = struct {
 
-    var current_page = common.pageUp(start);
-    const end_page = common.pageDown(end);
+};
 
-    while (current_page < end_page) : (current_page += 1) {
+pub fn addRam() void {
 
-        const addr = common.addrOfPage(current_page);
-        const node: *std.SinglyLinkedList.Node = @ptrFromInt(addr);
-
-        freelist.prepend(node);
-        num_free_pages += 1;
-
-    }
 }
 
-pub fn allocPage() error{OutOfMemory}!usize {
-    lock.lock();
-    defer lock.unlock();
+pub fn alloc(order: u8) !*Page {
 
-    if (freelist.popFirst()) |node| {
-
-        num_free_pages -= 1;
-        return @intFromPtr(node);
-
-    } else {
-        return error.OutOfMemory;
-    }
 }
 
-pub fn freePage(addr: usize) void {
-    const node: *std.SinglyLinkedList.Node = @ptrFromInt(addr);
-    freelist.prepend(node);
-    num_free_pages += 1;
-}
+pub fn free(page: *Page, order: u8) void {
 
-pub fn getNumFree() usize {
-    return num_free_pages;
 }
-
-var freelist: std.SinglyLinkedList = .{};
-var num_free_pages: usize = 0;
-var lock: Spinlock = .{};
