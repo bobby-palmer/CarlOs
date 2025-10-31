@@ -18,7 +18,8 @@ pub const Page = struct {
         is_head: u1,
     },
 
-    /// how many pages are in this group (allocated or free)
+    /// how many pages are in this group (allocated or free) should not be
+    /// modified outside of pmm!
     order: u8,
 
     /// Phyical page number for this metadata.
@@ -30,6 +31,12 @@ pub const Page = struct {
         pmm: struct {
             buddy_link: std.DoublyLinkedList.Node,
         },
+
+        heap: struct {
+            cache_link: std.DoublyLinkedList.Node,
+            free_slots: std.SinglyLinkedList,
+            used_slots: usize,
+        },
     },
 
     /// The start address of this page
@@ -40,6 +47,10 @@ pub const Page = struct {
     /// Return length in bytes of this allocation
     pub fn size(self: *const Page) usize {
         return common.PAGE_SIZE * (@as(usize, 1) << self.order);
+    }
+
+    pub fn endAddr(self: *const Page) usize {
+        return self.startAddr() + self.size();
     }
 };
 
