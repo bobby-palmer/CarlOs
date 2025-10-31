@@ -1,6 +1,4 @@
 //! Global free page buddy allocator, and metadata manager. 
-//!
-//! TODO change asserts to be kernel panics in all modes
 
 const std = @import("std");
 const common = @import("common.zig");
@@ -148,7 +146,7 @@ pub fn alloc(order: u8) error{OutOfMemory}!*Page {
     return error.OutOfMemory;
 }
 
-/// Alloc with order 0
+/// Alloc with order 0 (single page)
 pub fn allocPage() error{OutOfMemory}!*Page {
     return alloc(0);
 }
