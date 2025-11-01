@@ -34,12 +34,18 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
         @panic("Fail to init pmm");
     };
 
+    // TEST
 
-    _ = sbi.DebugConsole.consoleWrite("HERE") catch {};
-
-    _ = FdtParser.parse(fdt, Heap.global_allocator) catch {
-        @panic("HERE");
+    var p2 = FdtParser.parse(fdt, Heap.global_allocator) catch {
+        @panic("FAIL");
     };
+
+    if (!p2.header.isVerified()) {
+        @panic("Fail to verify");
+    }
+
+    p2.deinit(Heap.global_allocator);
+
     // end test
 
     _ = sbi.DebugConsole.consoleWrite("Kmain boot") catch {};
