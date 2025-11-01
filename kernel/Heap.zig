@@ -44,9 +44,7 @@ pub fn alloc(
 
             const page = pmm.allocPage() catch return null; 
 
-            page.data = .{ .heap = undefined };
-
-            page.data.heap.used_slots = 0;
+            page.data = .{ .heap = .{} };
 
             var current_addr = page.startAddr();
             while (current_addr < page.endAddr()) 

@@ -29,13 +29,13 @@ pub const Page = struct {
     /// component
     data: union {
         pmm: struct {
-            buddy_link: std.DoublyLinkedList.Node,
+            buddy_link: std.DoublyLinkedList.Node = .{},
         },
 
         heap: struct {
-            cache_link: std.DoublyLinkedList.Node,
-            free_slots: std.SinglyLinkedList,
-            used_slots: usize,
+            cache_link: std.DoublyLinkedList.Node = .{},
+            free_slots: std.SinglyLinkedList = .{},
+            used_slots: usize = 0,
         },
     },
 
@@ -276,4 +276,4 @@ const MAX_REGIONS: u8 = 5;
 var regions: [MAX_REGIONS]RegionMetadata = undefined;
 
 var lock = Spinlock{};
-var buddy_lists = [_]std.DoublyLinkedList {std.DoublyLinkedList {}} ** MAX_ORDER;
+var buddy_lists = [_]std.DoublyLinkedList {std.DoublyLinkedList {}} ** (MAX_ORDER + 1);
