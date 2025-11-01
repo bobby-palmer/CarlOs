@@ -7,13 +7,13 @@ const common = @import("common.zig");
 const pmm = @import("pmm.zig");
 const Spinlock = @import("Spinlock.zig");
 
-caches: 
-    [MAX_ALLOCATION_ORDER - MIN_ALLOCATION_ORDER + 1]std.DoublyLinkedList = .{},
+caches: [MAX_ALLOCATION_ORDER - MIN_ALLOCATION_ORDER + 1]std.DoublyLinkedList 
+    = .{std.DoublyLinkedList{}} ** (MAX_ALLOCATION_ORDER - MIN_ALLOCATION_ORDER + 1),
 
 fn genericAlloc(
     self: *anyopaque, 
     len: usize, 
-    alignment: std.mem.alignment, 
+    alignment: std.mem.Alignment, 
     ret_addr: usize) ?[*]u8 {
     
     const heap: *Heap = @ptrCast(self);
@@ -23,7 +23,7 @@ fn genericAlloc(
 pub fn alloc(
     self: *Heap, 
     len: usize, 
-    alignment: std.mem.alignment, 
+    alignment: std.mem.Alignment, 
     ret_addr: usize) ?[*]u8 {
     
     _ = ret_addr;
@@ -34,7 +34,7 @@ pub fn alloc(
 
         const pages = getPageOrder(bytes_order);
         const page = pmm.alloc(pages) catch return null;
-        return @ptrCast(page.startAddr());
+        return @ptrFromInt(page.startAddr());
 
     } else {
 
@@ -44,11 +44,13 @@ pub fn alloc(
 
             const page = pmm.allocPage() catch return null; 
 
+            page.data = .{ .heap = undefined };
+
             page.data.heap.used_slots = 0;
 
             var current_addr = page.startAddr();
             while (current_addr < page.endAddr()) 
-                : (current_addr += @as(usize, 1) << bytes_order) {
+                : (current_addr += @as(usize, 1) << @intCast(bytes_order)) {
                 
                 const node: *std.SinglyLinkedList.Node = @ptrFromInt(current_addr);
                 page.data.heap.free_slots.prepend(node);
@@ -62,7 +64,7 @@ pub fn alloc(
         
         const page = common.nestedFieldParentPtr(
             pmm.Page, 
-            .{"data", "heap", "cache_link"}, 
+            &.{"data", "heap", "cache_link"}, 
             node);
 
         const slot = page.data.heap.free_slots.popFirst() orelse unreachable;
@@ -126,7 +128,7 @@ pub fn free(
         } 
 
         slab_page.data.heap.used_slots -= 1;
-        slab_page.data.heap.free_slots.prepend(@ptrCast(memory.ptr));
+        slab_page.data.heap.free_slots.prepend(@ptrCast(@alignCast(memory.ptr)));
 
     }
 }
@@ -136,7 +138,7 @@ const Allocator = std.mem.Allocator;
 pub fn allocator(self: *Heap) Allocator {
     return Allocator {
         .ptr = @ptrCast(self),
-        .vtable = Allocator.VTable {
+        .vtable = &Allocator.VTable {
             .alloc = genericAlloc,
             .free = genericFree,
             .remap = Allocator.noRemap,
@@ -151,7 +153,7 @@ var global_heap = Heap{};
 fn globalAlloc(
     self: *anyopaque, 
     len: usize, 
-    alignment: std.mem.alignment, 
+    alignment: std.mem.Alignment, 
     ret_addr: usize) ?[*]u8 {
 
     _ = self;
@@ -179,7 +181,7 @@ fn globalFree(
 /// Shared global slab allocator protected by a spinlock
 pub const global_allocator = Allocator {
     .ptr = undefined,
-    .vtable = Allocator.VTable {
+    .vtable = &Allocator.VTable {
         .alloc = globalAlloc,
         .free = globalFree,
         .remap = Allocator.noRemap,

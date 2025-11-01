@@ -11,6 +11,7 @@ const sbi = @import("sbi.zig");
 const common = @import("common.zig");
 const FdtParser = @import("FdtParser.zig");
 const pmm = @import("pmm.zig");
+const Heap = @import("Heap.zig");
 
 var BOOT_HEAP: [common.MB] u8 align(16) = undefined;
 
@@ -32,6 +33,14 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
     initPmm(&parser, alloc) catch {
         @panic("Fail to init pmm");
     };
+
+
+    _ = sbi.DebugConsole.consoleWrite("HERE") catch {};
+
+    _ = FdtParser.parse(fdt, Heap.global_allocator) catch {
+        @panic("HERE");
+    };
+    // end test
 
     _ = sbi.DebugConsole.consoleWrite("Kmain boot") catch {};
     halt();

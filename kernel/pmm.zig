@@ -46,9 +46,10 @@ pub const Page = struct {
 
     /// Return length in bytes of this allocation
     pub fn size(self: *const Page) usize {
-        return common.PAGE_SIZE * (@as(usize, 1) << self.order);
+        return common.PAGE_SIZE * (@as(usize, 1) << @intCast(self.order));
     }
 
+    /// Return first address after the end of this page region
     pub fn endAddr(self: *const Page) usize {
         return self.startAddr() + self.size();
     }
@@ -149,6 +150,8 @@ pub fn alloc(order: u8) error{OutOfMemory}!*Page {
                 buddy_page.flags.free = 1;
                 buddy_page.flags.is_head = 1;
                 buddy_page.order = @intCast(current_order - 1);
+                buddy_page.data = .{ .pmm = .{} };
+
                 buddy_lists[current_order - 1].append(&buddy_page.data.pmm.buddy_link);
             }
 
@@ -188,7 +191,7 @@ pub fn free(page: *Page) void {
     var page_to_free = page;
     var current_order = page.order;
 
-    while (current_order < MAX_ORDER) {
+    while (current_order < MAX_ORDER) : (current_order += 1){
         const buddy_ppn = buddyOf(page_to_free.ppn, current_order);
         const buddy_page = pageOfPpn(buddy_ppn) orelse break;
 
@@ -196,6 +199,7 @@ pub fn free(page: *Page) void {
         std.debug.assert(buddy_page.flags.is_head == 1);
 
         if (buddy_page.flags.free == 0 or 
+            buddy_page.flags.reserved == 1 or
             buddy_page.order != current_order) break;
 
         buddy_lists[current_order].remove(&buddy_page.data.pmm.buddy_link);
@@ -206,13 +210,13 @@ pub fn free(page: *Page) void {
         if (buddy_page.ppn < page_to_free.ppn) {
             page_to_free = buddy_page;
         }
-
-        current_order += 1;
     }
 
     page_to_free.flags.free = 1;
     page_to_free.flags.is_head = 1;
     page_to_free.order = current_order;
+    page_to_free.data = .{ .pmm = .{} };
+
     buddy_lists[current_order].append(&page_to_free.data.pmm.buddy_link);
 }
 
@@ -221,13 +225,14 @@ pub fn pageOfAddress(address: usize) ?*Page {
     if (!std.mem.isAligned(address, common.PAGE_SIZE)) {
         @panic("Invalid page start address");
     }
+
     return pageOfPpn(common.pageDown(address));
 }
 
 fn pageOfPpn(ppn: u64) ?*Page {
-    for (0..next_region_idx) |idx| {
-        if (regions[idx].start_ppn <= ppn and ppn < regions[idx].endPpn()) {
-            return &regions[idx].pages[ppn - regions[idx].start_ppn];
+    for (getValidRegions()) |region| {
+        if (region.containsPpn(ppn)) {
+            return region.pageOfPpn(ppn);
         }
     }
 
@@ -239,12 +244,30 @@ fn buddyOf(ppn: u64, order: u8) u64 {
     return ppn ^ (@as(u64, 1) << @intCast(order));
 }
 
+/// Slice over initialized regions
+fn getValidRegions() []RegionMetadata {
+    return regions[0..next_region_idx];
+}
+
 const RegionMetadata = struct {
     start_ppn: u64,
     pages: []Page,
 
     fn endPpn(self: *const RegionMetadata) u64 {
         return self.start_ppn + self.pages.len;
+    }
+
+    fn containsPpn(self: *const RegionMetadata, ppn: u64) bool {
+        return self.start_ppn <= ppn and ppn < self.endPpn();
+    }
+
+    /// Return page metadata for ppn, panic if not in this region
+    fn pageOfPpn(self: *const RegionMetadata, ppn: u64) *Page {
+        if (!self.containsPpn(ppn)) {
+            @panic("Access to page that isnt in region");
+        }
+
+        return &self.pages[ppn - self.start_ppn];
     }
 };
 
@@ -253,4 +276,4 @@ const MAX_REGIONS: u8 = 5;
 var regions: [MAX_REGIONS]RegionMetadata = undefined;
 
 var lock = Spinlock{};
-var buddy_lists = [_]std.DoublyLinkedList {std.DoublyLinkedList {}} ** (MAX_ORDER + 1);
+var buddy_lists = [_]std.DoublyLinkedList {std.DoublyLinkedList {}} ** MAX_ORDER;
