@@ -51,6 +51,7 @@ pub fn deinit(self: *FdtParser, allocator: std.mem.Allocator) void {
     self.mem_rsv_map.deinit(allocator);
 }
 
+/// Print out the device tree for debugging
 pub fn write(self: *const FdtParser, writer: *std.io.Writer) !void {
     try writer.writeAll("==== FDT =====\n");
 
@@ -64,7 +65,7 @@ pub fn write(self: *const FdtParser, writer: *std.io.Writer) !void {
 
     try writer.writeAll("= MemRsvMap ==\n");
     for (self.mem_rsv_map.items) |entry| {
-        try writer.print("start: 0x{x}, len: 0x{x}", .{ entry.start, entry.len} );
+        try writer.print("start: 0x{x}, len: 0x{x}\n", .{ entry.start, entry.len} );
     }
     try writer.writeByte('\n');
 }
@@ -122,10 +123,21 @@ pub const StructNode = struct {
     sub_nodes: std.ArrayList(StructNode),
 
     fn write(self: *const StructNode, writer: *std.io.Writer, depth: usize) !void {
-        const indent = 3 * depth;
+        const indent = 4 * depth;
 
         try writer.splatByteAll(' ', indent);
-        try writer.print("{s}:\n", .{self.name});
+        try writer.print("{s}\n", .{self.name});
+
+        try writer.splatByteAll(' ', indent);
+        try writer.writeAll("> Props:\n");
+
+        for (self.props.items) |*prop| {
+            try writer.splatByteAll(' ', indent + 2);
+            try writer.print("{s}: {s}\n", .{prop.name, prop.value});
+        }
+
+        try writer.splatByteAll(' ', indent);
+        try writer.writeAll("> Sub Nodes:\n");
 
         for (self.sub_nodes.items) |*sub_node| {
             try sub_node.write(writer, depth + 1);
