@@ -51,6 +51,18 @@ pub fn deinit(self: *FdtParser, allocator: std.mem.Allocator) void {
     self.mem_rsv_map.deinit(allocator);
 }
 
+pub fn write(self: *const FdtParser, writer: *std.io.Writer) !void {
+    try writer.writeAll("==== FDT =====\n");
+
+    try writer.writeAll("=== HEADER ===\n");
+    try self.header.write(writer);
+    try writer.writeByte('\n');
+
+    try writer.writeAll("==== Tree ====\n");
+    try self.root.write(writer, 0);
+    try writer.writeByte('\n');
+}
+
 pub const Header = extern struct {
     magic: u32,
     totalsize: u32,
@@ -72,6 +84,12 @@ pub const Header = extern struct {
         }
 
         return header;
+    }
+
+    fn write(self: *const Header, writer: *std.io.Writer) !void {
+        inline for (std.meta.fields(Header)) |field| {
+            try writer.print("{s}: 0x{x}\n", .{ field.name, @field(self, field.name)});
+        }
     }
 
     pub fn isVerified(self: *const Header) bool {
@@ -96,6 +114,17 @@ pub const StructNode = struct {
     name: []const u8,
     props: std.ArrayList(PropNode),
     sub_nodes: std.ArrayList(StructNode),
+
+    fn write(self: *const StructNode, writer: *std.io.Writer, depth: usize) !void {
+        const indent = 3 * depth;
+
+        try writer.splatByteAll(' ', indent);
+        try writer.print("{s}:\n", .{self.name});
+
+        for (self.sub_nodes.items) |*sub_node| {
+            try sub_node.write(writer, depth + 1);
+        }
+    }
 
     /// return value of property if it exists in this node
     pub fn getProp(self: *const StructNode, prop_name: []const u8) ?[]const u8 {
