@@ -123,24 +123,22 @@ pub const StructNode = struct {
     sub_nodes: std.ArrayList(StructNode),
 
     fn write(self: *const StructNode, writer: *std.io.Writer, depth: usize) !void {
-        const indent = 4 * depth;
-
-        try writer.splatByteAll(' ', indent);
+        try writer.splatByteAll(' ', depth);
         try writer.print("{s}\n", .{self.name});
 
-        try writer.splatByteAll(' ', indent);
+        try writer.splatByteAll(' ', depth);
         try writer.writeAll("> Props:\n");
 
         for (self.props.items) |*prop| {
-            try writer.splatByteAll(' ', indent + 2);
+            try writer.splatByteAll(' ', depth + 2);
             try writer.print("{s}: {s}\n", .{prop.name, prop.value});
         }
 
-        try writer.splatByteAll(' ', indent);
+        try writer.splatByteAll(' ', depth);
         try writer.writeAll("> Sub Nodes:\n");
 
         for (self.sub_nodes.items) |*sub_node| {
-            try sub_node.write(writer, depth + 1);
+            try sub_node.write(writer, depth + 5);
         }
     }
 
