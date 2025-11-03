@@ -61,6 +61,12 @@ pub fn write(self: *const FdtParser, writer: *std.io.Writer) !void {
     try writer.writeAll("==== Tree ====\n");
     try self.root.write(writer, 0);
     try writer.writeByte('\n');
+
+    try writer.writeAll("= MemRsvMap ==\n");
+    for (self.mem_rsv_map.items) |entry| {
+        try writer.print("start: 0x{x}, len: 0x{x}", .{ entry.start, entry.len} );
+    }
+    try writer.writeByte('\n');
 }
 
 pub const Header = extern struct {
