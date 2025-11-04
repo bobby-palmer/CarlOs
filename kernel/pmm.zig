@@ -1,5 +1,4 @@
-//! Global free page buddy allocator, and metadata manager. TODO encapsulate
-//! page structure to restrict access to hidden fields
+//! Global free page buddy allocator, and metadata manager.
 
 const std = @import("std");
 const common = @import("common.zig");

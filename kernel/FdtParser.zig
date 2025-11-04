@@ -126,20 +126,26 @@ pub const StructNode = struct {
         try writer.splatByteAll(' ', depth);
         try writer.print("{s}\n", .{self.name});
 
-        try writer.splatByteAll(' ', depth);
-        try writer.writeAll("> Props:\n");
+        if (self.props.items.len > 0) {
+            try writer.splatByteAll(' ', depth);
+            try writer.writeAll("> Props:\n");
 
-        for (self.props.items) |*prop| {
-            try writer.splatByteAll(' ', depth + 2);
-            try writer.print("{s}: {s}\n", .{prop.name, prop.value});
+            for (self.props.items) |*prop| {
+                try writer.splatByteAll(' ', depth + 2);
+                try writer.print("{s}: {s}\n", .{prop.name, prop.value});
+            }
         }
 
-        try writer.splatByteAll(' ', depth);
-        try writer.writeAll("> Sub Nodes:\n");
+        if (self.sub_nodes.items.len > 0) {
+            try writer.splatByteAll(' ', depth);
+            try writer.writeAll("> Sub Nodes:\n");
 
-        for (self.sub_nodes.items) |*sub_node| {
-            try sub_node.write(writer, depth + 5);
+            for (self.sub_nodes.items) |*sub_node| {
+                try sub_node.write(writer, depth + 5);
+            }
         }
+
+        try writer.writeByte('\n');
     }
 
     /// return value of property if it exists in this node
