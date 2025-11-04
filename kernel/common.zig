@@ -1,4 +1,5 @@
-//! Module of commonly used interfaces and constants
+//! Module library code with no external dependencies. No deps is important to
+//! be able to safely import at any level.
 
 const std = @import("std");
 
@@ -69,3 +70,8 @@ pub inline fn writeCSR(comptime reg: []const u8, value: u64) void {
         : [val] "r" (value),
     );
 }
+
+//-------------- Start new structure ==============
+pub const Spinlock = @import("common/Spinlock.zig");
+pub const riscv = @import("common/riscv.zig");
+pub const constants = @import("common/constants.zig");
