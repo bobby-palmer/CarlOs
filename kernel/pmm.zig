@@ -1,5 +1,4 @@
-//! Global free-page allocator, build on the buddy system. 
-//! Also exposes API for storing metadata for callers
+//! Global free-page allocator, built on the buddy system. 
 
 const std = @import("std");
 const common = @import("common.zig");
@@ -20,6 +19,7 @@ pub fn alloc(order: u8) error{OutOfMemory}!*Page {
     unreachable;
 }
 
+/// Alloc(order: 0) for convenience
 pub fn allocPage() error{OutOfMemory}!*Page {
     return alloc(0);
 }
@@ -28,6 +28,12 @@ pub fn allocPage() error{OutOfMemory}!*Page {
 /// it is ok to look up the page pointer by address
 pub fn free(page: *Page) void {
     _  = page;
+    unreachable;
+}
+
+/// Return the page that starts on a given address if it exists
+pub fn lookupPage(base_addr: usize) ?*Page {
+    _ = base_addr;
     unreachable;
 }
 
