@@ -1,4 +1,4 @@
-//! Global free-page allocator, built on the buddy system. 
+//! Global free-page allocator, for managing phyical memory!
 
 const std = @import("std");
 const common = @import("common.zig");
@@ -31,19 +31,18 @@ pub fn free(page: *Page) void {
     unreachable;
 }
 
-/// Return the page that starts on a given address if it exists
-pub fn lookupPage(base_addr: usize) ?*Page {
-    _ = base_addr;
-    unreachable;
-}
-
 /// Page metadata storage
 const Page = struct {
     flags: struct {
+        /// Is owned by the pmm
         free: u1,
+        /// Should never be allocated or touched by any system
         reserved: u1,
+        /// This is the beginning of either an allocated or reserved region
         is_head: u1,
     },
-
+    /// Phyical page number (ppn)
     ppn: u44,
+    /// if 'is_head == 1' this is the begining of 2^order pages
+    order: u8,
 };
