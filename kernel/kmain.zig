@@ -23,8 +23,6 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
 
     exception.init();
 
-    asm volatile ("unimp");
-
     var fa = std.heap.FixedBufferAllocator.init(&BOOT_HEAP);
     const alloc = fa.allocator();
 
