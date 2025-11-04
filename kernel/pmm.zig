@@ -1,16 +1,16 @@
-//! Global free-page allocator! TODO add DMA regions
+//! Global free-page allocator!
 
 const std = @import("std");
 const common = @import("common.zig");
 
-pub fn init(start_addr: usize, end_addr: usize) void {
+pub fn addRam(start_addr: usize, end_addr: usize) void {
     const start_page_addr = 
         std.mem.alignForward(usize, start_addr, common.constants.PAGE_SIZE); 
     const end_page_addr =
         std.mem.alignBackward(usize, end_addr, common.constants.PAGE_SIZE);
 
     for (start_page_addr..end_page_addr) |page_addr| {
-        free(page_addr);
+        freePage(page_addr);
     }
 }
 
@@ -25,7 +25,7 @@ pub fn allocPage() error{OutOfMemory}!usize {
     }
 }
 
-pub fn free(start_addr: usize) void {
+pub fn freePage(start_addr: usize) void {
     lock.lock();
     defer lock.unlock();
 
