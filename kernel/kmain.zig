@@ -10,6 +10,7 @@ const std = @import("std");
 const sbi = @import("sbi.zig");
 const common = @import("common.zig");
 const FdtParser = @import("FdtParser.zig");
+const console = @import("console.zig");
 
 const constants = common.constants;
 
@@ -30,7 +31,10 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
         @panic("Fail to verify device tree header");
     }
 
+    parser.write(&console.debug_writer) catch {};
+
     _ = sbi.DebugConsole.consoleWrite("Kmain boot") catch {};
+
     halt();
 }
 
