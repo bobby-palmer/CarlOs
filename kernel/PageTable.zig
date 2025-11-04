@@ -138,7 +138,6 @@ pub fn getEntryAlloc(
 pub fn vaddr2Paddr(self: *const PageTable, vaddr: usize) ?usize {
     const pte = getEntry(self, vaddr) orelse return null;
 
-    // TODO assert leaf
     if (pte.flags.V == 1) {
         return common.addrOfPage(pte.ppn);
     } else {
