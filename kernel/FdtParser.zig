@@ -7,7 +7,7 @@ const common = @import("common.zig");
 
 header: Header,
 root: StructNode,
-mem_rsv_map: std.ArrayList(common.MemoryRegion),
+mem_rsv_map: std.ArrayList(common.MemorySpan),
 
 /// Parse fdt
 pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !FdtParser {
@@ -22,7 +22,7 @@ pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !FdtParser {
     const root, _ = try StructNode.parse(words, &strings, alloc);
 
     var mem_rsv_head = fdt + header.off_mem_rsvmap / @sizeOf(u64);
-    var mem_rsv_lst = try std.ArrayList(common.MemoryRegion).initCapacity(alloc, 10);
+    var mem_rsv_lst = try std.ArrayList(common.MemorySpan).initCapacity(alloc, 10);
 
     while (true) {
         const start = std.mem.bigToNative(u64, mem_rsv_head[0]);
@@ -32,9 +32,9 @@ pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !FdtParser {
 
         if (start == 0 and len == 0) break;
 
-        _ = try mem_rsv_lst.append(alloc, common.MemoryRegion { 
+        _ = try mem_rsv_lst.append(alloc, common.MemorySpan { 
             .start = start, 
-            .len = len 
+            .end = start + len,
         });
     }
 
