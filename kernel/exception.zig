@@ -20,7 +20,6 @@ export fn handleTrap(frame: *TrapFrame) void {
         2 => @panic("Illegal instruction"),
         3 => @panic("Breakpoint hit"),
         8 => @panic("ECALL from U-Mode"),
-        9 => @panic("ECALL from S-mode"),
         12 => @panic("Instruction page fault"),
         13 => @panic("Load page fault"),
         15 => @panic("Store/AMO Page Fault"),
