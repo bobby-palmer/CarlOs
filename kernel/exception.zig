@@ -1,6 +1,6 @@
 //! Exception handler entry point (syscalls / interupt handlers)
 
-const riscv = @import("riscv.zig");
+const riscv = @import("common.zig").riscv;
 
 /// Turn on exception handler for this CPU
 pub fn initHart() void {
