@@ -24,7 +24,7 @@ pub inline fn getHartId() u64 {
 
 /// Saved context of CPU at an exception point. DO NOT CHANGE THIS!!!
 pub const TrapFrame = extern struct {
-    // x1 - x4 (Non-caller saved)
+    // Non-caller saved
     /// Return Address
     ra: u64,
     /// Stack Pointer (the stack pointer *before* the trap)

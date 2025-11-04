@@ -2,7 +2,6 @@
 
 const std = @import("std");
 const common = @import("common.zig");
-const Spinlock = @import("Spinlock.zig");
 
 /// Max contiguous allocation is 2^10 pages = 4MB
 pub const MAX_ORDER: u8 = 10;
@@ -276,4 +275,5 @@ const MAX_REGIONS: u8 = 5;
 var regions: [MAX_REGIONS]RegionMetadata = undefined;
 
 var lock = Spinlock{};
-var buddy_lists = [_]std.DoublyLinkedList {std.DoublyLinkedList {}} ** (MAX_ORDER + 1);
+var buddy_lists = [_]std.DoublyLinkedList {std.DoublyLinkedList {}} **
+(MAX_ORDER + 1);

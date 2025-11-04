@@ -1,18 +1,19 @@
 //! Exception handler entry point (syscalls / interupt handlers)
 
-const common = @import("common.zig");
-const TrapFrame = @import("trapframe.zig").TrapFrame;
+const riscv = @import("riscv.zig");
 
 /// Turn on exception handler for this CPU
-pub fn init() void {
-    common.writeCSR("stvec", @intFromPtr(&_trap_entry));
+pub fn initHart() void {
+    riscv.writeCSR("stvec", @intFromPtr(&_trap_entry));
+
+    // TODO enable some exceptions that are off by default
 }
 
 /// Exception handler
-export fn handleTrap(frame: *TrapFrame) void {
+export fn handleTrap(frame: *riscv.TrapFrame) void {
     _ = frame;
 
-    const scause = common.readCSR("scause");
+    const scause = riscv.readCSR("scause");
 
     switch (scause) {
         // Synchronous Exceptions

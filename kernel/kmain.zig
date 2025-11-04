@@ -11,17 +11,14 @@ const sbi = @import("sbi.zig");
 const common = @import("common.zig");
 const FdtParser = @import("FdtParser.zig");
 const pmm = @import("pmm.zig");
-const Heap = @import("Heap.zig");
-const console = @import("console.zig");
-const exception = @import("exception.zig");
 
-var BOOT_HEAP: [common.MB] u8 align(16) = undefined;
+const constants = common.constants;
+
+var BOOT_HEAP: [constants.MB] u8 align(16) = undefined;
 
 /// rest of setup for the boot hart
 export fn boot(_: u64, fdt: [*]const u64) noreturn {
     zeroBss(); // Do not move this, code expects defaults to be zeroed
-
-    exception.init();
 
     var fa = std.heap.FixedBufferAllocator.init(&BOOT_HEAP);
     const alloc = fa.allocator();
@@ -37,8 +34,6 @@ export fn boot(_: u64, fdt: [*]const u64) noreturn {
     initPmm(&parser, alloc) catch {
         @panic("Fail to init pmm");
     };
-
-    parser.write(&console.debug_writer) catch {};
 
     _ = sbi.DebugConsole.consoleWrite("Kmain boot") catch {};
     halt();
