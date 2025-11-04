@@ -13,12 +13,17 @@ const FdtParser = @import("FdtParser.zig");
 const pmm = @import("pmm.zig");
 const Heap = @import("Heap.zig");
 const console = @import("console.zig");
+const exception = @import("exception.zig");
 
 var BOOT_HEAP: [common.MB] u8 align(16) = undefined;
 
 /// rest of setup for the boot hart
 export fn boot(_: u64, fdt: [*]const u64) noreturn {
     zeroBss(); // Do not move this, code expects defaults to be zeroed
+
+    exception.init();
+
+    asm volatile ("unimp");
 
     var fa = std.heap.FixedBufferAllocator.init(&BOOT_HEAP);
     const alloc = fa.allocator();

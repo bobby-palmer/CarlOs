@@ -41,12 +41,31 @@ pub fn nestedFieldParentPtr(
     std.debug.assert(field_names.len > 0);
 
     if (field_names.len == 1) {
-        return @fieldParentPtr(field_names[0], @as(*@FieldType(T, field_names[0]), @alignCast(@ptrCast(field_ptr))));
+        return @fieldParentPtr(field_names[0], @as(*@FieldType(T,
+                    field_names[0]), @alignCast(@ptrCast(field_ptr))));
     } else {
-        const tp = nestedFieldParentPtr(@FieldType(T, field_names[0]), field_names[1..], field_ptr);
+        const tp = nestedFieldParentPtr(@FieldType(T, field_names[0]),
+            field_names[1..], field_ptr);
         return @fieldParentPtr(
             field_names[0],
             tp
         );
     }
+}
+
+/// Read a CSR register
+pub inline fn readCSR(comptime reg: []const u8) u64 {
+    var result: u64 = undefined;
+    asm volatile ("csrr %[ret], " ++ reg
+        : [ret] "=r" (result),
+    );
+    return result;
+}
+
+/// Write to a CSR register
+pub inline fn writeCSR(comptime reg: []const u8, value: u64) void {
+    asm volatile ("csrw " ++ reg ++ ", %[val]"
+        :
+        : [val] "r" (value),
+    );
 }
