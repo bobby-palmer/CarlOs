@@ -11,7 +11,28 @@ pub fn init() void {
 /// Exception handler
 export fn handleTrap(frame: *TrapFrame) void {
     _ = frame;
-    @panic("trap handler called"); // TODO
+
+    const scause = common.readCSR("scause");
+
+    switch (scause) {
+        // Synchronous Exceptions
+        0 => @panic("Missaligned address"),
+        2 => @panic("Illegal instruction"),
+        3 => @panic("Breakpoint hit"),
+        8 => @panic("ECALL from U-Mode"),
+        9 => @panic("ECALL from S-mode"),
+        12 => @panic("Instruction page fault"),
+        13 => @panic("Load page fault"),
+        15 => @panic("Store/AMO Page Fault"),
+
+        // Async Exception
+        (1 << 63) | 1 => @panic("Supervisor Software Interrupt (SSIP)"),
+        (1 << 63) | 5 => @panic("Supervisor Timer Interrupt (STIP)"),
+        (1 << 63) | 9 => @panic("Supervisor External Interrupt (SEIP)"),
+
+        // Unknown Exception
+        else => @panic("Unhandled exception scause"),
+    }
 }
 
 /// Entry point to save CPU context and jump to handler
