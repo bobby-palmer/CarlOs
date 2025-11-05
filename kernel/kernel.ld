@@ -1,36 +1,38 @@
-MEMORY {
-  kernel_space (rwx) : ORIGIN = 0x80200000, LENGTH = 16M
-}
+ENTRY(_start);
+
+PAGESIZE = 4K;
+
+PHYSICAL_BASE = 0x80200000;
+VIRTUAL_BASE = 0xFFFFFFFFC0000000;
+
+VMA_OFFSET = VIRTUAL_BASE - PHYSICAL_BASE;
 
 SECTIONS {
-  __kstart = .;
+  . = PHYSICAL_BASE;
 
-  .text.boot : {
+  .text.boot : ALIGN(PAGESIZE) {
     *(.text.boot)
-  } > kernel_space
+  }
 
-  .text : ALIGN(CONSTANT(MAXPAGESIZE)) {
+  . = VIRTUAL_BASE + SIZEOF(.text.boot);
+
+  .text : AT(. - VMA_OFFSET) ALIGN(PAGESIZE) {
     *(.text)
-  } > kernel_space
+  }
 
-  .rodata : ALIGN(CONSTANT(MAXPAGESIZE)) {
+  .rodata : AT(. - VMA_OFFSET) ALIGN(PAGESIZE) {
       *(.rodata .rodata.*);
-  } > kernel_space
+  }
 
-  .data : ALIGN(CONSTANT(MAXPAGESIZE)) {
+  .data : AT(. - VMA_OFFSET) ALIGN(PAGESIZE) {
       *(.data .data.*);
-  } > kernel_space
+  }
 
-  .bss : ALIGN(CONSTANT(MAXPAGESIZE)) {
+  .bss : AT(. - VMA_OFFSET) ALIGN(PAGESIZE) {
       __bss = .;
       *(.bss .bss.* .sbss .sbss.*);
       __bss_end = .;
-  } > kernel_space
+  }
 
-  .stack (NOLOAD) : ALIGN(CONSTANT(MAXPAGESIZE)) {
-    . = . + 64K;
-    __stack_top = .;
-  } > kernel_space
-
-  __kend = .;
+  __kend = ALIGN(PAGESIZE);
 }

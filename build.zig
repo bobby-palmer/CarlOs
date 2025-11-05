@@ -22,6 +22,7 @@ pub fn build(b: *std.Build) void {
         })
     });
 
+    exe.addAssemblyFile(b.path("kernel/boot.S"));
     exe.setLinkerScript(b.path("kernel/kernel.ld"));
 
     b.installArtifact(exe);
