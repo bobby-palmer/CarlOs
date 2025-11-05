@@ -3,11 +3,10 @@
 const FdtParser = @This();
 
 const std = @import("std");
-const common = @import("common.zig");
 
 header: Header,
 root: StructNode,
-mem_rsv_map: std.ArrayList(common.MemorySpan),
+mem_rsv_map: std.ArrayList(MemorySpan),
 
 /// Parse fdt
 pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !FdtParser {
@@ -22,7 +21,7 @@ pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !FdtParser {
     const root, _ = try StructNode.parse(words, &strings, alloc);
 
     var mem_rsv_head = fdt + header.off_mem_rsvmap / @sizeOf(u64);
-    var mem_rsv_lst = try std.ArrayList(common.MemorySpan).initCapacity(alloc, 10);
+    var mem_rsv_lst = try std.ArrayList(MemorySpan).initCapacity(alloc, 10);
 
     while (true) {
         const start = std.mem.bigToNative(u64, mem_rsv_head[0]);
@@ -32,9 +31,9 @@ pub fn parse(fdt: [*]const u64, alloc: std.mem.Allocator) !FdtParser {
 
         if (start == 0 and len == 0) break;
 
-        _ = try mem_rsv_lst.append(alloc, common.MemorySpan { 
+        _ = try mem_rsv_lst.append(alloc, MemorySpan { 
             .start = start, 
-            .end = start + len,
+            .len = len,
         });
     }
 
@@ -65,8 +64,8 @@ pub fn write(self: *const FdtParser, writer: *std.io.Writer) !void {
 
     try writer.writeAll("= MemRsvMap ==\n");
     for (self.mem_rsv_map.items) |entry| {
-        try writer.print("start: 0x{x}, end: 0x{x}\n", 
-            .{ entry.start, entry.end} );
+        try writer.print("start: 0x{x}, len: 0x{x}\n", 
+            .{ entry.start, entry.len} );
     }
     try writer.writeByte('\n');
 }
@@ -267,3 +266,8 @@ const Strings = struct {
     } // offToStr(...)
 
 }; // Strings
+
+pub const MemorySpan = struct {
+    start: u64,
+    len: u64,
+};

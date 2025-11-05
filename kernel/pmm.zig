@@ -3,7 +3,8 @@
 const std = @import("std");
 const common = @import("common.zig");
 
-pub fn addRam(start_addr: usize, end_addr: usize) void {
+/// Initialize phyical memory manager at boot. Should be called exactly once
+pub fn init(start_addr: usize, end_addr: usize) void {
     const start_page_addr = 
         std.mem.alignForward(usize, start_addr, common.constants.PAGE_SIZE); 
     const end_page_addr =
@@ -14,6 +15,8 @@ pub fn addRam(start_addr: usize, end_addr: usize) void {
     }
 }
 
+/// Try to allocate a page a return its start address. 
+/// Page is not guaranteed to be zeroed
 pub fn allocPage() error{OutOfMemory}!usize {
     lock.lock();
     defer lock.unlock();
@@ -25,7 +28,12 @@ pub fn allocPage() error{OutOfMemory}!usize {
     }
 }
 
+/// Free a page starting at 'start_addr'
 pub fn freePage(start_addr: usize) void {
+    if (!std.mem.isAligned(start_addr, common.constants.PAGE_SIZE)) {
+        @panic("freePage(...) called on missaligned address");
+    }
+
     lock.lock();
     defer lock.unlock();
 
@@ -36,5 +44,5 @@ pub fn freePage(start_addr: usize) void {
     free_pages.prepend(node);
 }
 
-var free_pages = std.SinglyLinkedList{};
 var lock = common.Spinlock{};
+var free_pages = std.SinglyLinkedList{};
