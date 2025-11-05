@@ -7,11 +7,15 @@ const common = @import("common.zig");
 pub fn init(start_addr: usize, end_addr: usize) void {
     const start_page_addr = 
         std.mem.alignForward(usize, start_addr, common.constants.PAGE_SIZE); 
+
     const end_page_addr =
         std.mem.alignBackward(usize, end_addr, common.constants.PAGE_SIZE);
 
-    for (start_page_addr..end_page_addr) |page_addr| {
-        freePage(page_addr);
+    var current_page_addr = start_page_addr;
+
+    while (current_page_addr < end_page_addr) 
+        : (current_page_addr += common.constants.PAGE_SIZE) {
+        freePage(current_page_addr);
     }
 }
 
