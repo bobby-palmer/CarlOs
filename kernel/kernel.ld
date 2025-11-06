@@ -1,37 +1,41 @@
 ENTRY(_start);
 
-PAGESIZE = 4K;
+_RAM_START = 0x80000000;
+_KERNEL_START = _RAM_START + 0x200000;
+_KERNEL_VIRTUAL_START = 0xFFFF800000000000;
 
-PHYSICAL_BASE = 0x80200000;
-VIRTUAL_BASE = 0xFFFFFFFFC0000000;
-VMA_OFFSET = VIRTUAL_BASE - PHYSICAL_BASE;
+_VMA_OFFSET = _KERNEL_VIRTUAL_START - _KERNEL_START;
 
 SECTIONS {
-  . = PHYSICAL_BASE;
 
-  .text.boot : ALIGN(PAGESIZE) {
-    *(.text.boot)
+  . = _KERNEL_START;
+
+  .text.boot ALIGN(4) : {
+    KEEP(*(.text.boot))
+    _boot_end = .;
+  }
+  
+  . = _boot_end + _VMA_OFFSET;
+
+  .text : AT(ADDR(.text) - _VMA_OFFSET) {
+    *(text .text.*);
   }
 
-  . = VIRTUAL_BASE + SIZEOF(.text.boot);
-
-  .text : AT(. - VMA_OFFSET) ALIGN(PAGESIZE) {
-    *(.text)
+  .rodata ALIGN(8) : AT(ADDR(.rodata) - _VMA_OFFSET) {
+    *(.srodata .srodata.*);
+    *(.rodata .rodata.*);
+    . = ALIGN(8);
   }
 
-  .rodata : AT(. - VMA_OFFSET) ALIGN(PAGESIZE) {
-      *(.rodata .rodata.*);
+  .data ALIGN(8) : AT(ADDR(.data) - _VMA_OFFSET) {
+    *(.data .data.*);
   }
 
-  .data : AT(. - VMA_OFFSET) ALIGN(PAGESIZE) {
-      *(.data .data.*);
+  .bss ALIGN(64) (NOLOAD) : {
+    _sbss = .;
+    *(.sbss .sbss.* .bss .bss.*);
+    . = ALIGN(64);
+    _ebss = .;
   }
 
-  .bss : AT(. - VMA_OFFSET) ALIGN(PAGESIZE) {
-      __bss = .;
-      *(.bss .bss.* .sbss .sbss.*);
-      __bss_end = .;
-  }
-
-  __kend = ALIGN(PAGESIZE);
 }
