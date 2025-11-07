@@ -58,6 +58,13 @@ pub fn getCurrentPt() PageTablePointer {
     return common.Paddr.fromPpn(ppn);
 }
 
+pub fn setCurrentPt(ptp: PageTablePointer, asid: u16) void {
+    const ppn = ptp.getPpn();
+    const val: usize = (@as(usize, 9) << 60) | (asid << 44) | ppn;
+    common.riscv.writeCSR("satp", val);
+    common.riscv.fenceVma();
+}
+
 /// Look up phyical mapping of vaddr if it exists
 pub fn translate(ptp: PageTablePointer, vaddr: usize) ?common.Paddr {
     var current_pt = deref(ptp);

@@ -17,6 +17,11 @@ pub inline fn writeCSR(comptime reg: []const u8, value: u64) void {
     );
 }
 
+/// Force TLB flush, all address spaces, all pages
+pub inline fn fenceVma() void {
+    asm volatile ("sfence.vma zero, zero");
+}
+
 /// Get hart id of current cpu
 pub inline fn getHartId() u64 {
     return readCSR("mhartid");
