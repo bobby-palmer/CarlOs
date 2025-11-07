@@ -1,14 +1,23 @@
+const sbi = @import("sbi.zig");
+
 export fn _kmain(_: usize, _: usize) noreturn {
     zeroBss();
+    _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};
     halt();
 }
-// Setup boot stack for boot hart and jump to boot
-// export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
-//     asm volatile (
-//         \\ la sp, __stack_top
-//         \\ j boot
-//     );
-// }
+
+fn halt() noreturn {
+    while (true) {
+        asm volatile ("wfi");
+    }
+}
+
+fn zeroBss() void {
+    const start = @extern([*]u8, .{ .name = "_sbss"});
+    const end = @extern([*]u8, .{ .name = "_ebss"});
+    const slice = start[0.. end - start];
+    @memset(slice, 0);
+}
 
 // const std = @import("std");
 // const sbi = @import("sbi.zig");
@@ -52,21 +61,6 @@ export fn _kmain(_: usize, _: usize) noreturn {
 //     halt(); 
 // }
 //
-
-/// Halt cpu
-fn halt() noreturn {
-    while (true) {
-        asm volatile ("wfi");
-    }
-}
-
-
-fn zeroBss() void {
-    const start = @extern([*]u8, .{ .name = "_sbss"});
-    const end = @extern([*]u8, .{ .name = "_ebss"});
-    const slice = start[0.. end - start];
-    @memset(slice, 0);
-}
 
 //
 // /// Extract ram information and initialize phyical memory manager

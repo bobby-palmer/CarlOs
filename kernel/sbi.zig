@@ -117,9 +117,11 @@ pub const DebugConsole = struct {
     /// console is not able to accept more bytes. If successful returns the
     /// number of bytes written
     pub fn consoleWrite(message: []const u8) SbiError!usize {
+        const common = @import("common.zig");
+
         return @intCast(try call(EID, 0x0, .{
             .a0 = message.len,
-            .a1 = @intFromPtr(message.ptr),
+            .a1 = common.virtToPhys(@intFromPtr(message.ptr)),
             .a2 = 0, // whole address fits in the first argument
         }));
     }
