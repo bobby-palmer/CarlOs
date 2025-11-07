@@ -14,6 +14,12 @@ pub const Paddr = struct {
     pub fn fromPpn(ppn: usize) Paddr {
         return Paddr { .paddr = constants.PAGE_SIZE * ppn };
     }
+
+    /// Return phyical page number for the page that contains this address
+    /// (basically round down)
+    pub fn getPpn(self: *const Paddr) usize {
+        return self.paddr / constants.PAGE_SIZE;
+    }
 };
 
 /// Return true if this address is in the kernels address space

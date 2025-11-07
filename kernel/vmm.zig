@@ -39,18 +39,30 @@ pub const Flags = packed struct {
     }
 };
 
+/// Allocate a page table with no valid entries
+pub fn initEmptyPt() !PageTablePointer {
+    const paddr = try pmm.allocPage();
+
+    const pt = deref(paddr);
+    for (pt.entries) |*entry| {
+        entry.flags.V = 0;
+    }
+
+    return paddr;
+}
+
 /// Extract the currently active pagetable phyical address
 pub fn getCurrentPt() PageTablePointer {
     const satp = common.riscv.readCSR("satp");
-    const ppn = satp & ((@as(usize, 1) << 44) - 1); // bottom 44 bits
+    const ppn = satp & common.bitMask(44);
     return common.Paddr.fromPpn(ppn);
 }
 
 /// Look up phyical mapping of vaddr if it exists
-pub fn translate(pt: PageTablePointer, vaddr: usize) ?common.Paddr {
-    var current_pt: *PageTable = @ptrFromInt(pt.getVaddr());
+pub fn translate(ptp: PageTablePointer, vaddr: usize) ?common.Paddr {
+    var current_pt = deref(ptp);
 
-    for (&[_]u8 {3, 2, 1, 0}) |lvl| {
+    for (levels) |lvl| {
         const entry = &current_pt.entries[vpn(vaddr, lvl)];
 
         if (entry.flags.V == 0) return null;
@@ -65,7 +77,43 @@ pub fn translate(pt: PageTablePointer, vaddr: usize) ?common.Paddr {
         current_pt = @ptrFromInt(child.getVaddr());
     }
 
-    unreachable;
+    @panic("Invalid page table");
+}
+
+pub fn mapPage(
+    ptp: PageTablePointer, 
+    vaddr: usize, 
+    paddr: common.Paddr, 
+    flags: Flags) !void {
+
+    var current_pt = deref(ptp);
+
+    for (levels) |lvl| {
+        const entry = &current_pt.entries[vpn(vaddr, lvl)];
+
+        if (lvl == 0) {
+
+            if (entry.flags.V == 1) {
+                return error.AlreadyMapped;
+            } else {
+                entry.flags = flags;
+                entry.ppn = @intCast(paddr.getPpn());
+                return;
+            }
+
+        } else {
+
+            if (entry.flags.V == 0) {
+                const child = try initEmptyPt();
+                entry.flags = Flags{};
+                entry.ppn = child.getPpn();
+            }
+
+            const child = PageTablePointer.fromPpn(entry.ppn);
+            current_pt = deref(child);
+
+        }
+    }
 }
 
 /// Sv48 page table entry
@@ -80,8 +128,14 @@ const PageTable = struct {
     entries: [512]Pte,
 };
 
-// Wrapper struct for type safety
-const PageTablePointer = common.Paddr;
+/// Wrapper struct for type safety
+pub const PageTablePointer = common.Paddr;
+
+fn deref(ptp: PageTablePointer) *PageTable {
+    return @ptrFromInt(ptp.getVaddr());
+}
+
+const levels: []const u8 = &[_]u8 {3, 2, 1, 0};
 
 fn vpn(vaddr: usize, level: u8) usize {
     return 0x1FF & (vaddr >> @intCast(12 + 9 * level));
