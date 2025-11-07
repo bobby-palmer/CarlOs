@@ -3,7 +3,7 @@
 
 const pmm = @import("pmm.zig");
 const common = @import("common.zig");
-const constants = common.constants;
+const constants = @import("constants.zig");
 
 /// Permission flags for virtual memory mapping
 pub const Flags = packed struct {
