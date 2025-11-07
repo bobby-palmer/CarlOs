@@ -40,14 +40,14 @@ pub const Flags = packed struct {
 };
 
 /// Extract the currently active pagetable phyical address
-pub fn getCurrentPt() common.Paddr {
+pub fn getCurrentPt() PageTablePointer {
     const satp = common.riscv.readCSR("satp");
     const ppn = satp & ((@as(usize, 1) << 44) - 1); // bottom 44 bits
     return common.Paddr.fromPpn(ppn);
 }
 
 /// Look up phyical mapping of vaddr if it exists
-pub fn translate(pt: common.Paddr, vaddr: usize) ?common.Paddr {
+pub fn translate(pt: PageTablePointer, vaddr: usize) ?common.Paddr {
     var current_pt: *PageTable = @ptrFromInt(pt.getVaddr());
 
     for (&[_]u8 {3, 2, 1, 0}) |lvl| {
@@ -79,6 +79,9 @@ const Pte = packed struct {
 const PageTable = struct {
     entries: [512]Pte,
 };
+
+// Wrapper struct for type safety
+const PageTablePointer = common.Paddr;
 
 fn vpn(vaddr: usize, level: u8) usize {
     return 0x1FF & (vaddr >> @intCast(12 + 9 * level));
