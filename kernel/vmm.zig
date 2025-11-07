@@ -39,6 +39,26 @@ pub const Flags = packed struct {
     }
 };
 
+/// Bootstrap init (map the rest of the kernel)
+pub fn init() !void {
+    const ptp = getCurrentPt();
+    const pt = deref(ptp);
+
+    kernel_heap_map = try initEmptyPt();
+
+    const entry = &pt.entries[vpn(constants.KHEAP_BASE, MAX_LEVEL)];
+    entry.flags = .{};
+    entry.ppn = kernel_heap_map.getPpn();
+}
+
+/// Kernel mapping sections (exlcusing linear ram map)
+var kernel_heap_map: PageTablePointer = undefined;
+
+pub fn mapKernel(ptp: PageTablePointer) void {
+    _ = ptp;
+    unreachable;
+}
+
 /// Allocate a page table with no valid entries
 pub fn initEmptyPt() !PageTablePointer {
     const paddr = try pmm.allocPage();
@@ -142,6 +162,7 @@ fn deref(ptp: PageTablePointer) *PageTable {
     return @ptrFromInt(ptp.getVaddr());
 }
 
+const MAX_LEVEL: u8 = 3;
 const levels: []const u8 = &[_]u8 {3, 2, 1, 0};
 
 fn vpn(vaddr: usize, level: u8) usize {
