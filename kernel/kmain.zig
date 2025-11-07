@@ -1,5 +1,6 @@
-export fn _kmain(_: usize, _: usize) void {
-    while (true) {}
+export fn _kmain(_: usize, _: usize) noreturn {
+    zeroBss();
+    halt();
 }
 // Setup boot stack for boot hart and jump to boot
 // export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
@@ -51,19 +52,22 @@ export fn _kmain(_: usize, _: usize) void {
 //     halt(); 
 // }
 //
-// /// Halt cpu
-// fn halt() noreturn {
-//     while (true) {
-//         asm volatile ("wfi");
-//     }
-// }
-//
-// fn zeroBss() void {
-//     const start = @extern([*]u8, .{ .name = "__bss"});
-//     const end = @extern([*]u8, .{ .name = "__bss_end"});
-//     const slice = start[0.. end - start];
-//     @memset(slice, 0);
-// }
+
+/// Halt cpu
+fn halt() noreturn {
+    while (true) {
+        asm volatile ("wfi");
+    }
+}
+
+
+fn zeroBss() void {
+    const start = @extern([*]u8, .{ .name = "_sbss"});
+    const end = @extern([*]u8, .{ .name = "_ebss"});
+    const slice = start[0.. end - start];
+    @memset(slice, 0);
+}
+
 //
 // /// Extract ram information and initialize phyical memory manager
 // fn initPmm(device_tree: *const FdtParser) void {
