@@ -141,6 +141,8 @@ pub fn mapPage(
 
         }
     }
+
+    common.riscv.fenceVma();
 }
 
 /// Sv48 page table entry

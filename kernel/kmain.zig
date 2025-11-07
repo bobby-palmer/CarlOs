@@ -29,14 +29,6 @@ export fn _kmain(_: usize, fdt: usize) noreturn {
         @panic("Fail to init vmm");
     };
 
-    const test_tree = FdtParser.parse(@ptrFromInt(fdt), kmalloc.gpa) catch {
-        @panic("test failed");
-    };
-
-    if (!test_tree.header.isVerified()) {
-        @panic("Test failed2");
-    }
-
     _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};
     halt();
 }
