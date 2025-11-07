@@ -1,3 +1,6 @@
+export fn _kmain(_: usize, _: usize) void {
+    while (true) {}
+}
 // Setup boot stack for boot hart and jump to boot
 // export fn _start() linksection(".text.boot") callconv(.naked) noreturn {
 //     asm volatile (

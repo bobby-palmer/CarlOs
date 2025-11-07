@@ -2,17 +2,20 @@ ENTRY(_start);
 
 _RAM_START = 0x80000000;
 _KERNEL_START = _RAM_START + 0x200000;
-_KERNEL_VIRTUAL_START = 0xFFFF800000000000;
 
-_VMA_OFFSET = _KERNEL_VIRTUAL_START - _KERNEL_START;
+_VIRTUAL_RAM_START = 0xffffffffc0000000;
+_VMA_OFFSET = _VIRTUAL_RAM_START - _RAM_START;
+
+_STACK_LEN = 2M;
 
 SECTIONS {
 
   . = _KERNEL_START;
 
-  .text.boot ALIGN(4) : {
-    KEEP(*(.text.boot))
-    _boot_end = .;
+  .text.boot : {
+    _boot_start = .;
+    *(.text.boot);
+    _boot_end = ABSOLUTE(.);
   }
   
   . = _boot_end + _VMA_OFFSET;
@@ -38,4 +41,8 @@ SECTIONS {
     _ebss = .;
   }
 
+  .stack ALIGN(16) (NOLOAD) : {
+    . += _STACK_LEN;
+    _stack_top = .;
+  }
 }

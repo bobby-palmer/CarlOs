@@ -9,81 +9,74 @@
 
 _start:
 
-.macro PPN, reg, pt
-	la \reg, \pt
-	srli \reg, \reg, PAGE_SHIFT
+.macro PPN, reg, label
+  la \reg, \label 
+  srli \reg, \reg, PAGE_SHIFT
 .endm
 
-/* Clobbers: \ppn t0 t1
- * Arguments:
- *   pt: symbol
- *   lvl: immediate
- *   va: register
- *   ppn: register
- *   flags: immediate
- */
-.macro PTE_SET, pt, lvl, va, ppn, flags
-	/* extract the correct level from \va */
-	srli \va, \va, (PAGE_SHIFT + 9 * \lvl)
-	andi \va, \va, (1 << 9) - 1
-	slli \va, \va, 3
+/*t0 should have va, t1 should have ppn*/
+.macro PTE_SET, pt, lvl, flags
+  srli t0, t0, (PAGE_SHIFT + 9 * \lvl)
+  andi t0, t0, (1 << 9) - 1
+  slli t0, t0, 3
 
-	/* get index in the pte */
-	la t0, \pt
-	add t0, t0, \va
+  la t2, \pt
+  add t0, t0, t2
 
-	/* Transform the PPN into the PTE */
-	slli \ppn, \ppn, 10
-	addi \ppn, \ppn, \flags
+  slli t1, t1, 10
+  addi t1, t1, \flags
 
-	sw \ppn, 0(t0)
+  sd t1, 0(t0)
 .endm
 
-  /*Disable interupts*/
-  csrw sie, 0
-	csrw sip, 0
+  /*Identity mapping*/
+  la t0, _RAM_START
+  PPN t1, _page_id_lvl2
+  PTE_SET _page_kernel_lvl3, 3, PTE_VALID
 
-  /*1GB identity mapping*/
-  la t1, _RAM_START
-  PPN t2, _boot_pt_lvl2
-  PTE_SET _kernel_pt_lvl3, 3, t1, t2, PTE_VALID 
-  PPN t2, _RAM_START
-  PTE_SET _boot_pt_lvl2, 2, t1, t2, PTE_VALID | PTE_EXECUTE | PTE_READ | PTE_WRITE
+  la t0, _RAM_START
+  PPN t1, _RAM_START
+  PTE_SET _page_id_lvl2, 2, PTE_VALID | PTE_EXECUTE | PTE_READ | PTE_WRITE
 
-  /*1GB Higher half mapping*/
-  la t1, KVS
-  ld t1, 0(t1)
-  PPN t2, _code_pt_lvl2 
-  PTE_SET _kernel_pt_lvl3, 3, t1, t2, PTE_VALID
-  PPN t2, _RAM_START
-  PTE_SET _code_pt_lvl2, 2, t1, t2, PTE_VALID | PTE_EXECUTE | PTE_READ | PTE_WRITE
+  /*higher half mapping*/
+  la t0, vrs
+  ld t0, 0(t0)
+  PPN t1, _page_higher_lvl2
+  PTE_SET _page_kernel_lvl3, 3, PTE_VALID
 
-  /*Start mmu with mapping*/
-	;  li t1, 9
-	; slli t1, t1, 60
-	; PPN t0, _kernel_pt_lvl3
-	; or t0, t0, t1
-	; csrw satp, t0
+  la t0, vrs
+  ld t0, 0(t0)
+  PPN t1, _RAM_START
+  PTE_SET _page_higher_lvl2, 2, PTE_VALID | PTE_EXECUTE | PTE_READ | PTE_WRITE
 
-  /*Verify*/
-  li a0, 0xd00dfeed
+  /*Start MMU*/
+  li t1, 9
+	slli t1, t1, 60
+	PPN t0, _page_kernel_lvl3
+	or t0, t0, t1
+	csrw satp, t0
 
-/*Inf loop*/
-.L:
-  wfi
-  j .L
+  /*Set stack pointer*/
+  la t0, stack_top
+  ld sp, 0(t0)
 
-KVS: .quad _KERNEL_VIRTUAL_START
+  /*Jump to higher half*/
+  la t0, kmain
+  ld t0, 0(t0)
+  jalr x0, t0, 0
 
 .macro DEFINE_PAGE, name
 .align PAGE_SHIFT
 \name: 
 .rep (1 << PAGE_SHIFT)
-	.byte 0
+    .byte 0
 .endr
 .endm
 
+DEFINE_PAGE _page_kernel_lvl3
+DEFINE_PAGE _page_id_lvl2
+DEFINE_PAGE _page_higher_lvl2
 
-DEFINE_PAGE _kernel_pt_lvl3
-DEFINE_PAGE _boot_pt_lvl2
-DEFINE_PAGE _code_pt_lvl2
+vrs: .quad _VIRTUAL_RAM_START
+stack_top: .quad _stack_top
+kmain: .quad _kmain
