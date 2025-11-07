@@ -48,7 +48,7 @@ pub fn init() !void {
 
     const entry = &pt.entries[vpn(constants.KHEAP_BASE, MAX_LEVEL)];
     entry.flags = .{};
-    entry.ppn = kernel_heap_map.getPpn();
+    entry.ppn = @intCast(kernel_heap_map.getPpn());
 }
 
 /// Kernel mapping sections (exlcusing linear ram map)
@@ -64,7 +64,7 @@ pub fn initEmptyPt() !PageTablePointer {
     const paddr = try pmm.allocPage();
 
     const pt = deref(paddr);
-    for (pt.entries) |*entry| {
+    for (&pt.entries) |*entry| {
         entry.flags.V = 0;
     }
 
@@ -133,7 +133,7 @@ pub fn mapPage(
             if (entry.flags.V == 0) {
                 const child = try initEmptyPt();
                 entry.flags = Flags{};
-                entry.ppn = child.getPpn();
+                entry.ppn = @intCast(child.getPpn());
             }
 
             const child = PageTablePointer.fromPpn(entry.ppn);

@@ -4,6 +4,8 @@ const console = @import("console.zig");
 const common = @import("common.zig");
 const FdtParser = @import("FdtParser.zig");
 const pmm = @import("pmm.zig");
+const vmm = @import("vmm.zig");
+const kmalloc = @import("kmalloc.zig");
 
 var BOOT_HEAP: [common.constants.MB] u8 align(16) = undefined;
 
@@ -22,6 +24,18 @@ export fn _kmain(_: usize, fdt: usize) noreturn {
     }
 
     initPmm(&device_tree);
+
+    vmm.init() catch {
+        @panic("Fail to init vmm");
+    };
+
+    const test_tree = FdtParser.parse(@ptrFromInt(fdt), kmalloc.gpa) catch {
+        @panic("test failed");
+    };
+
+    if (!test_tree.header.isVerified()) {
+        @panic("Test failed2");
+    }
 
     _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};
     halt();
@@ -53,7 +67,9 @@ pub fn panic(
 /// Extract ram information and initialize phyical memory manager
 fn initPmm(device_tree: *const FdtParser) void {
 
-    var max_reserved = @intFromPtr(@extern([*]u8, .{.name = "_kend"})) - common.constants.VMA_OFFSET;
+    var max_reserved = 
+        @intFromPtr(
+            @extern([*]u8, .{.name = "_kend"})) - common.constants.VMA_OFFSET;
 
     for (device_tree.mem_rsv_map.items) |span| {
         max_reserved = @max(
