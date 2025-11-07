@@ -45,4 +45,6 @@ SECTIONS {
     . += _STACK_LEN;
     _stack_top = .;
   }
+
+  _kend = .;
 }

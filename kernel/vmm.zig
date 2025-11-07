@@ -3,7 +3,7 @@
 
 const pmm = @import("pmm.zig");
 const common = @import("common.zig");
-const constants = @import("constants.zig");
+const constants = common.constants;
 
 /// Permission flags for virtual memory mapping
 pub const Flags = packed struct {
@@ -47,8 +47,6 @@ const Pte = packed struct {
 const PageTable = struct {
     entries: [512]Pte,
 };
-
-const PageTablePointer = pmm.Paddr;
 
 fn vpn(vaddr: usize, level: u8) usize {
     return 0x1FF & (vaddr >> (12 + 9 * level));

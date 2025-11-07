@@ -118,10 +118,11 @@ pub const DebugConsole = struct {
     /// number of bytes written
     pub fn consoleWrite(message: []const u8) SbiError!usize {
         const common = @import("common.zig");
+        const paddr = common.Paddr.fromVaddr(@intFromPtr(message.ptr));
 
         return @intCast(try call(EID, 0x0, .{
             .a0 = message.len,
-            .a1 = common.virtToPhys(@intFromPtr(message.ptr)),
+            .a1 = paddr.paddr,
             .a2 = 0, // whole address fits in the first argument
         }));
     }
