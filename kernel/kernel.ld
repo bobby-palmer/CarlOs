@@ -1,11 +1,7 @@
 ENTRY(_start);
 
-_RAM_START = 0x80000000;
-_KERNEL_START = _RAM_START + 0x200000;
-
-_VIRTUAL_RAM_START = 0xffffffffc0000000;
-_VMA_OFFSET = _VIRTUAL_RAM_START - _RAM_START;
-
+_KERNEL_START = 0x80200000;
+_VMA_OFFSET = 0xffff800000000000;
 _STACK_LEN = 2M;
 
 SECTIONS {
@@ -13,12 +9,10 @@ SECTIONS {
   . = _KERNEL_START;
 
   .text.boot : {
-    _boot_start = .;
     *(.text.boot);
-    _boot_end = ABSOLUTE(.);
   }
   
-  . = _boot_end + _VMA_OFFSET;
+  . += _VMA_OFFSET;
 
   .text : AT(ADDR(.text) - _VMA_OFFSET) {
     *(text .text.*);

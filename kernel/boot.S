@@ -30,29 +30,20 @@ _start:
 .endm
 
   /*Identity mapping*/
-  la t0, _RAM_START
-  PPN t1, _page_id_lvl2
-  PTE_SET _page_kernel_lvl3, 3, PTE_VALID
+  li t0, 0
+  li t1, 0
+  PTE_SET _kernel_pt, 3, PTE_VALID | PTE_READ | PTE_WRITE | PTE_EXECUTE
 
-  la t0, _RAM_START
-  PPN t1, _RAM_START
-  PTE_SET _page_id_lvl2, 2, PTE_VALID | PTE_EXECUTE | PTE_READ | PTE_WRITE
-
-  /*higher half mapping*/
-  la t0, vrs
+  /*Higher half mapping*/
+  la t0, vma_offset
   ld t0, 0(t0)
-  PPN t1, _page_higher_lvl2
-  PTE_SET _page_kernel_lvl3, 3, PTE_VALID
-
-  la t0, vrs
-  ld t0, 0(t0)
-  PPN t1, _RAM_START
-  PTE_SET _page_higher_lvl2, 2, PTE_VALID | PTE_EXECUTE | PTE_READ | PTE_WRITE
+  li t1, 0
+  PTE_SET _kernel_pt, 3, PTE_VALID | PTE_READ | PTE_WRITE | PTE_EXECUTE
 
   /*Start MMU*/
   li t1, 9
 	slli t1, t1, 60
-	PPN t0, _page_kernel_lvl3
+	PPN t0, _kernel_pt
 	or t0, t0, t1
 	csrw satp, t0
 
@@ -73,10 +64,8 @@ _start:
 .endr
 .endm
 
-DEFINE_PAGE _page_kernel_lvl3
-DEFINE_PAGE _page_id_lvl2
-DEFINE_PAGE _page_higher_lvl2
+DEFINE_PAGE _kernel_pt
 
-vrs: .quad _VIRTUAL_RAM_START
+vma_offset: .quad _VMA_OFFSET
 stack_top: .quad _stack_top
 kmain: .quad _kmain

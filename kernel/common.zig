@@ -3,20 +3,25 @@ pub const util = @import("common/util.zig");
 pub const riscv = @import("common/riscv.zig");
 pub const constants = @import("common/constants.zig");
 
-
-const _RAM_START: usize = 0x80000000;
-const _VIRTUAL_RAM_START: usize = 0xffffffffc0000000;
-const VMA_OFFSET = _VIRTUAL_RAM_START - _RAM_START;
-
-/// Phyical address
+/// Phyical address struct
 pub const Paddr = struct { 
     paddr: usize,
 
-    pub fn fromVaddr(addr: usize) Paddr {
-        return Paddr {.paddr = addr - VMA_OFFSET};
+    pub fn getVaddr(self: *const Paddr) usize {
+        return self.paddr + constants.VMA_OFFSET;
     }
 
-    pub fn getVaddr(self: *const Paddr) usize {
-        return self.paddr + VMA_OFFSET;
+    pub fn fromPpn(ppn: usize) Paddr {
+        return Paddr { .paddr = constants.PAGE_SIZE * ppn };
     }
 };
+
+/// Return true if this address is in the kernels address space
+pub fn isKernelAddress(vaddr: usize) bool {
+    return (vaddr >> 47) > 0;
+}
+
+/// Return bit mask with lower bits set
+pub fn bitMask(bits: u8) usize {
+    return (@as(usize, 1) << @intCast(bits)) - 1;
+}

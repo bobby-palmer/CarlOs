@@ -1,5 +1,4 @@
-//! Riscv sv39 virtual paging handler. Following
-//! https://marz.utk.edu/my-courses/cosc130/lectures/virtual-memory/
+//! Riscv sv48 virtual paging handler
 
 const pmm = @import("pmm.zig");
 const common = @import("common.zig");
@@ -34,9 +33,42 @@ pub const Flags = packed struct {
     /// Dirty bit. Automatically set by the CPU whenever this memory address is
     /// written to (stores).
     D: u1 = 0,
+
+    fn isLeaf(self: *const Flags) bool {
+        return self.R | self.W | self.X == 1;
+    }
 };
 
-/// Sv39 page table entry
+/// Extract the currently active pagetable phyical address
+pub fn getCurrentPt() common.Paddr {
+    const satp = common.riscv.readCSR("satp");
+    const ppn = satp & ((@as(usize, 1) << 44) - 1); // bottom 44 bits
+    return common.Paddr.fromPpn(ppn);
+}
+
+/// Look up phyical mapping of vaddr if it exists
+pub fn translate(pt: common.Paddr, vaddr: usize) ?common.Paddr {
+    var current_pt: *PageTable = @ptrFromInt(pt.getVaddr());
+
+    for (&[_]u8 {3, 2, 1, 0}) |lvl| {
+        const entry = &current_pt.entries[vpn(vaddr, lvl)];
+
+        if (entry.flags.V == 0) return null;
+
+        const child = common.Paddr.fromPpn(entry.ppn);
+
+        if (entry.flags.isLeaf()) {
+            const offset = vaddr & common.bitMask(12 + 9 * lvl);
+            return common.Paddr{ .paddr = child.paddr + offset };
+        }
+
+        current_pt = @ptrFromInt(child.getVaddr());
+    }
+
+    unreachable;
+}
+
+/// Sv48 page table entry
 const Pte = packed struct {
     flags: Flags,
     rsw: u2,
@@ -49,5 +81,5 @@ const PageTable = struct {
 };
 
 fn vpn(vaddr: usize, level: u8) usize {
-    return 0x1FF & (vaddr >> (12 + 9 * level));
+    return 0x1FF & (vaddr >> @intCast(12 + 9 * level));
 }

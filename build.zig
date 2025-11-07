@@ -2,8 +2,8 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
 
+    // RISC-V 64-bit, no OS
     const target = b.standardTargetOptions(.{
-        // RISC-V 64-bit, no OS
         .default_target = .{
             .cpu_arch = .riscv64,
             .os_tag = .freestanding,

@@ -53,14 +53,11 @@ pub fn panic(
 /// Extract ram information and initialize phyical memory manager
 fn initPmm(device_tree: *const FdtParser) void {
 
-    const kend = 
-        common.Paddr.fromVaddr(@intFromPtr(@extern([*]u8, .{.name = "_kend"})));
-
-    var max_reserved = kend;
+    var max_reserved = @intFromPtr(@extern([*]u8, .{.name = "_kend"})) - common.constants.VMA_OFFSET;
 
     for (device_tree.mem_rsv_map.items) |span| {
-        max_reserved.paddr = @max(
-            max_reserved.paddr, 
+        max_reserved = @max(
+            max_reserved, 
             @as(usize, @intCast(span.start + span.len))
         );
     }
@@ -86,9 +83,10 @@ fn initPmm(device_tree: *const FdtParser) void {
                 std.mem.readVarInt(
                     usize, reg[address_bytes .. address_bytes + size_bytes], .big);
 
+            const start = common.Paddr{ .paddr = max_reserved };
             const end = common.Paddr{ .paddr = base_addr + length };
 
-            pmm.init(max_reserved, end);
+            pmm.init(start, end);
             return;
         }
     }

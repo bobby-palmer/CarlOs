@@ -117,8 +117,10 @@ pub const DebugConsole = struct {
     /// console is not able to accept more bytes. If successful returns the
     /// number of bytes written
     pub fn consoleWrite(message: []const u8) SbiError!usize {
-        const common = @import("common.zig");
-        const paddr = common.Paddr.fromVaddr(@intFromPtr(message.ptr));
+        const vmm = @import("vmm.zig");
+        const pt = vmm.getCurrentPt();
+        const paddr = vmm.translate(pt, @intFromPtr(message.ptr)) 
+            orelse @panic("Invalid string");
 
         return @intCast(try call(EID, 0x0, .{
             .a0 = message.len,
