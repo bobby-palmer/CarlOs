@@ -9,8 +9,10 @@ const kmalloc = @import("kmalloc.zig");
 
 var BOOT_HEAP: [common.constants.MB] u8 align(16) = undefined;
 
+/// Boot strap initialization for one cpu
+/// NOTE the order of some initializations are important!
 export fn _kmain(_: usize, fdt: usize) noreturn {
-    zeroBss();
+    zeroBss(); // Must come first
 
     var fa = std.heap.FixedBufferAllocator.init(&BOOT_HEAP);
     const alloc = fa.allocator();
@@ -23,9 +25,10 @@ export fn _kmain(_: usize, fdt: usize) noreturn {
         @panic("Device tree cannot be verified");
     }
 
-    initPmm(&device_tree);
+    initPmm(&device_tree); // Most others rely on having virtual memory
 
-    vmm.init() catch {
+    vmm.init() catch { // Setup mappings so that they will be copied to future 
+                       // page tables
         @panic("Fail to init vmm");
     };
 
