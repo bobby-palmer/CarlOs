@@ -5,8 +5,6 @@ const riscv = @import("common.zig").riscv;
 /// Turn on exception handler for this CPU
 pub fn initHart() void {
     riscv.writeCSR("stvec", @intFromPtr(&_trap_entry));
-
-    // TODO enable some exceptions that are off by default
 }
 
 /// Exception handler
@@ -19,6 +17,7 @@ export fn handleTrap(frame: *riscv.TrapFrame) void {
         2 => @panic("Illegal instruction"),
         3 => @panic("Breakpoint hit"),
         8 => @panic("ECALL from U-Mode"),
+        9 => @panic("ECALL from S-Mode"),
         12 => @panic("Instruction page fault"),
         13 => @panic("Load page fault"),
         15 => @panic("Store/AMO Page Fault"),
@@ -34,6 +33,7 @@ export fn handleTrap(frame: *riscv.TrapFrame) void {
 }
 
 /// Entry point to save CPU context and jump to handler
+/// TODO fix to swap to kernel stack
 export fn _trap_entry() align(4) callconv(.naked) void {
     asm volatile (
         // Save stack pointer at exception point

@@ -1,19 +1,17 @@
-//! Process control block struct and utilities TODO
+//! Process control block struct and utilities
+
+const Process = @This();
 
 const std = @import("std");
 const common = @import("common.zig");
 const vmm = @import("vmm.zig");
 const riscv = common.riscv;
 
-trap_frame: riscv.TrapFrame,
-page_table: vmm.PageTablePointer,
-kernel_stack_base: usize,
 pid: u64,
-parent: u64,
+trap_frame: *riscv.TrapFrame,
+page_table: vmm.PageTablePointer,
+kernel_stack_top: usize,
 state: State,
-node: std.SinglyLinkedList.Node,
-user_stack_top: usize,
-exit_code: i32,
 
 pub const State = enum {
     Ready,
@@ -21,3 +19,14 @@ pub const State = enum {
     Waiting,
     Terminated,
 };
+
+pub fn init(alloc: std.mem.Allocator) !*Process {
+    _ = alloc;
+    unreachable;
+}
+
+pub fn destroy(self: *Process, alloc: std.mem.Allocator) void {
+    _ = self;
+    _ = alloc;
+    unreachable;
+}

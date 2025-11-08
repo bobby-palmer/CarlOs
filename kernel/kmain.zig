@@ -19,22 +19,16 @@ export fn _kmain(_: usize, fdt: usize) noreturn {
     var fa = std.heap.FixedBufferAllocator.init(&BOOT_HEAP);
     const alloc = fa.allocator();
 
-    const device_tree = FdtParser.parse(@ptrFromInt(fdt), alloc) catch {
-        @panic("Fail to parse device tree");
-    };
+    const device_tree = FdtParser.parse(@ptrFromInt(fdt), alloc) 
+        catch @panic("Fail to parse device tree");
 
     if (!device_tree.header.isVerified()) {
         @panic("Device tree cannot be verified");
     }
 
     initPmm(&device_tree);
-
-    vmm.init() catch {
-        @panic("Fail to init vmm");
-    };
-
+    vmm.init() catch @panic("Fail to init vmm");
     vma.init();
-
 
     _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};
     halt();
@@ -70,6 +64,7 @@ pub fn panic(
 }
 
 /// Extract ram information and initialize phyical memory manager
+/// TODO get other reserved nodes
 fn initPmm(device_tree: *const FdtParser) void {
 
     var max_reserved = 
