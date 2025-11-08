@@ -5,8 +5,8 @@ const common = @import("common.zig");
 const FdtParser = @import("FdtParser.zig");
 const pmm = @import("pmm.zig");
 const vmm = @import("vmm.zig");
-const kmalloc = @import("kmalloc.zig");
 const vma = @import("vma.zig");
+const heap = @import("heap.zig");
 
 var BOOT_HEAP: [common.constants.MB] u8 align(16) = undefined;
 
@@ -34,6 +34,23 @@ export fn _kmain(_: usize, fdt: usize) noreturn {
 
     vma.init();
 
+    var list = std.ArrayList(usize).initCapacity(heap.gpa, 100)
+        catch unreachable;
+
+    console.debug_writer.print("Init\n", .{}) 
+        catch unreachable;
+
+    for (0..10) |_| {
+        while (list.items.len < 10000) {
+            _ = list.addOne(heap.gpa) catch unreachable;
+        }
+
+        console.debug_writer.print("Init\n", .{}) 
+            catch unreachable;
+
+        list.deinit(heap.gpa);
+    }
+
     _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};
     halt();
 }
@@ -54,10 +71,16 @@ fn zeroBss() void {
 pub fn panic(
     message: []const u8, 
     _: ?*std.builtin.StackTrace, 
-    _: ?usize) noreturn {
+    pc: ?usize) noreturn {
 
-    _ = sbi.DebugConsole.consoleWrite(message) catch {};
-    _ = sbi.DebugConsole.consoleWrite("\n") catch {};
+    var writer = console.debug_writer;
+    writer.print("\n!!!KERNEL PANIC!!!\n", .{}) catch {};
+    writer.print("Error: {s}\n", .{message}) catch {};
+
+    if (pc) |fault_addr| {
+        writer.print("Fault Addr: {x}\n", .{fault_addr}) catch {};
+    }
+    
     halt(); 
 }
 

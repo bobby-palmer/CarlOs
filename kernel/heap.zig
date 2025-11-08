@@ -3,7 +3,10 @@
 const std = @import("std");
 const pmm = @import("pmm.zig");
 const vmm = @import("vmm.zig");
+const vma = @import("vma.zig");
 const common = @import("common.zig");
+
+const c = common.constants;
 
 const Allocator = std.mem.Allocator;
 const Alignment = std.mem.Alignment;
@@ -26,10 +29,20 @@ fn alloc(_: *anyopaque, len: usize, alignment: Alignment, ret_addr: usize) ?[*]u
     if (byte_order <= MAX_BYTE_ORDER) {
         return @ptrCast(caches[byte_order - MIN_BYTE_ORDER].alloc());
     } else {
-        return null; // TODO
-    }
+        const pt = vmm.getCurrentPt();
+        const pages = common.divCeil(len, c.PAGE_SIZE);
+        const vaddr = vma.alloc(pages);
 
-    return null;
+        for (0..pages) |page_offset| {
+            const ppage = pmm.allocPage() catch @panic("Kernel heap failure");
+            vmm.mapPage(pt, vaddr + page_offset * c.PAGE_SIZE, ppage, vmm.Flags {
+                .R = 1,
+                .W = 1,
+            }) catch @panic("Kernel heap failure");
+        }
+
+        return @ptrFromInt(vaddr);
+    }
 }
 
 fn free(_: *anyopaque, memory: []u8, alignment: Alignment, ret_addr: usize) void {
@@ -40,7 +53,20 @@ fn free(_: *anyopaque, memory: []u8, alignment: Alignment, ret_addr: usize) void
     if (byte_order <= MAX_BYTE_ORDER) {
         caches[byte_order - MIN_BYTE_ORDER].free(@ptrCast(memory.ptr));
     } else {
-        @panic("BAD!");
+        const pt = vmm.getCurrentPt();
+        const pages = common.divCeil(memory.len, c.PAGE_SIZE);
+        const vaddr = @intFromPtr(memory.ptr);
+
+        for (0..pages) |page_offset| {
+            const page_vaddr = vaddr + page_offset * c.PAGE_SIZE;
+            const ppage = vmm.translate(pt, page_vaddr)
+                orelse @panic("Free called on unmapped page");
+
+            pmm.freePage(ppage);
+            vmm.unmapPage(pt, page_vaddr);
+        }
+
+        vma.free(vaddr, pages);
     }
 }
 
@@ -49,43 +75,6 @@ fn getByteOrder(len: usize, alignment: Alignment) u8 {
     const align_order = std.math.log2_int_ceil(usize, alignment.toByteUnits());
     return @max(len_order, align_order, MIN_BYTE_ORDER);
 }
-
-/// Virtual page allocator for heap
-const Mapper = struct {
-
-    // Dimensions of each allocation
-    const PAGE_ORDER: u2 = 3;
-    const NUM_PAGES: u8 = 1 << PAGE_ORDER;
-    const NUM_BYTES: usize = common.constants.PAGE_SIZE * NUM_PAGES;
-
-    var next_voffset: usize = 0;
-
-    /// Allocate NUM_PAGES or return error
-    fn map() usize {
-        const ptp = vmm.getCurrentPt();
-
-        for (0..NUM_PAGES) |idx| {
-            const vaddr = 
-                common.constants.KHEAP_BASE + next_voffset 
-                + idx * common.constants.PAGE_SIZE;
-
-            const page = pmm.allocPage() catch {
-                @panic("kmalloc fail");
-            };
-
-            vmm.mapPage(ptp, vaddr, page, vmm.Flags {
-                .R = 1,
-                .W = 1,
-            }) catch {
-                @panic("kmalloc fail");
-            };
-        }
-
-        const base_addr = common.constants.KHEAP_BASE + next_voffset;
-        next_voffset += NUM_BYTES;
-        return base_addr;
-    }
-};
 
 /// One contiguous virtual memory region to allocate from
 const Slab = struct {
@@ -101,19 +90,28 @@ const Slab = struct {
         const addr = @intFromPtr(ptr);
         const base = 
             std.mem.alignBackward(
-                usize, addr, Mapper.NUM_BYTES);
+                usize, addr, c.PAGE_SIZE);
         return @ptrFromInt(base);
     }
 
     /// Allocate a slab with slots of size = "size"
     fn init(size: usize) *Slab {
-        const buffer = Mapper.map();
-        const buffer_end = buffer + Mapper.NUM_BYTES;
+        const vaddr = vma.alloc(1);
+        const paddr = pmm.allocPage() 
+            catch @panic("Kmalloc failed");
 
-        const me: *Slab = @ptrFromInt(buffer);
+        const pt = vmm.getCurrentPt();
+        vmm.mapPage(pt, vaddr, paddr, vmm.Flags {
+            .R = 1,
+            .W = 1,
+        }) catch @panic("Kmalloc failed");
+
+        const buffer_end = vaddr + c.PAGE_SIZE;
+
+        const me: *Slab = @ptrFromInt(vaddr);
         me.* = .{};
 
-        var head = buffer + @sizeOf(Slab);
+        var head = vaddr + @sizeOf(Slab);
         head = std.mem.alignForward(usize, head, size);
 
         while (head + size <= buffer_end) : (head += size) {
@@ -195,8 +193,8 @@ const Cache = struct {
     }
 };
 
-const MIN_BYTE_ORDER: u8 = 4; // 16 Byte minimum allocation
-const MAX_BYTE_ORDER: u8 = 11; // 2KB max slab allocation
+const MIN_BYTE_ORDER: u8 = 4; // 16B minimum allocation
+const MAX_BYTE_ORDER: u8 = 9; // 512B max slab allocation
 
 var caches = blk: {
     var result: [MAX_BYTE_ORDER - MIN_BYTE_ORDER + 1]Cache = undefined;

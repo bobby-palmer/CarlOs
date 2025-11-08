@@ -1,7 +1,6 @@
 //! Kernel virtual space allocator: This module handles allocating the address
-//! space for the kernel. 
-//!
-//! NOTE: pmm must be init first
+//! space for the kernel. This is not atomic safe, lock should be held by caller 
+//! (kmalloc)
 
 const std = @import("std");
 const pmm = @import("pmm.zig");
@@ -13,41 +12,21 @@ pub fn init() void {
     free(c.KHEAP_BASE, c.KHEAP_LEN / c.PAGE_SIZE);
 }
 
-pub fn alloc(num_pages: usize, page_align: usize) usize {
+pub fn alloc(num_pages: usize) usize {
     var parent = &free_list;
 
     while (parent.next) |node| : (parent = node) {
-        const start = node.start_page_num;
-        const end = node.endPage();
-        const alloc_start = std.mem.alignForward(usize, start, page_align);
-        const alloc_end = alloc_start + num_pages;
 
-        if (alloc_end <= end) {
+        if (num_pages <= node.len) {
+            node.len -= num_pages;
+            const base_page = node.endPage();
 
-            parent.next = node.next;
-            freeNode(node);
-
-            // Trim right side
-            if (alloc_end < end) {
-                const new_node = allocNode();
-                new_node.start_page_num = alloc_end;
-                new_node.len = end - alloc_end;
-
-                new_node.next = parent.next;
-                parent.next = new_node;
+            if (node.len == 0) {
+                parent.next = node.next;
+                freeNode(node);
             }
-
-            // Trim left side
-            if (start < alloc_start) {
-                const new_node = allocNode();
-                new_node.start_page_num = start;
-                new_node.len = alloc_start - start;
-
-                new_node.next = parent.next;
-                parent.next = new_node;
-            }
-
-            return alloc_start * c.PAGE_SIZE;
+            
+            return base_page * c.PAGE_SIZE;
         }
     }
 

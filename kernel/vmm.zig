@@ -145,6 +145,23 @@ pub fn mapPage(
     common.riscv.fenceVma();
 }
 
+pub fn unmapPage(ptp: PageTablePointer, vaddr: usize) void {
+    var current_pt = deref(ptp);
+
+    for (levels) |lvl| {
+        const entry = &current_pt.entries[vpn(vaddr, lvl)];
+
+        if (lvl == 0) {
+            entry.flags.V = 0;
+        } else {
+            const child = PageTablePointer.fromPpn(entry.ppn);
+            current_pt = deref(child);
+        }
+    }
+
+    common.riscv.fenceVma();
+}
+
 /// Sv48 page table entry
 const Pte = packed struct {
     flags: Flags,

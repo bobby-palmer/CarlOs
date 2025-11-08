@@ -31,3 +31,8 @@ pub fn isKernelAddress(vaddr: usize) bool {
 pub fn bitMask(bits: u8) usize {
     return (@as(usize, 1) << @intCast(bits)) - 1;
 }
+
+/// Ceiling division for unsigned number types
+pub fn divCeil(num: anytype, denom: @TypeOf(num)) @TypeOf(num) {
+    return (num + denom - 1) / denom;
+}
