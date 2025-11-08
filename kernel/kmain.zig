@@ -6,6 +6,7 @@ const FdtParser = @import("FdtParser.zig");
 const pmm = @import("pmm.zig");
 const vmm = @import("vmm.zig");
 const kmalloc = @import("kmalloc.zig");
+const vma = @import("vma.zig");
 
 var BOOT_HEAP: [common.constants.MB] u8 align(16) = undefined;
 
@@ -25,12 +26,13 @@ export fn _kmain(_: usize, fdt: usize) noreturn {
         @panic("Device tree cannot be verified");
     }
 
-    initPmm(&device_tree); // Most others rely on having virtual memory
+    initPmm(&device_tree);
 
-    vmm.init() catch { // Setup mappings so that they will be copied to future 
-                       // page tables
+    vmm.init() catch {
         @panic("Fail to init vmm");
     };
+
+    vma.init();
 
     _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};
     halt();
