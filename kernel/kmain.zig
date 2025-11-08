@@ -7,6 +7,7 @@ const pmm = @import("pmm.zig");
 const vmm = @import("vmm.zig");
 const vma = @import("vma.zig");
 const heap = @import("heap.zig");
+const exception = @import("exception.zig");
 
 var BOOT_HEAP: [common.constants.MB] u8 align(16) = undefined;
 

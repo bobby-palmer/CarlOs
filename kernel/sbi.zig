@@ -133,6 +133,7 @@ pub const DebugConsole = struct {
     /// non-blocking SBI call and it will not write anything into the output
     /// memory if there are no bytes to be read in the debug console.
     pub fn consoleRead(buffer: []u8) SbiError!usize {
+        // TODO use phyical memory
         return @intCast(try call(EID, 0x1, .{
             .a0 = buffer.len,
             .a1 = @intFromPtr(buffer.ptr),

@@ -11,11 +11,9 @@ pub fn initHart() void {
 
 /// Exception handler
 export fn handleTrap(frame: *riscv.TrapFrame) void {
-    _ = frame;
 
-    const scause = riscv.readCSR("scause");
+    switch (frame.scause) {
 
-    switch (scause) {
         // Synchronous Exceptions
         0 => @panic("Missaligned address"),
         2 => @panic("Illegal instruction"),
@@ -38,13 +36,13 @@ export fn handleTrap(frame: *riscv.TrapFrame) void {
 /// Entry point to save CPU context and jump to handler
 export fn _trap_entry() align(4) callconv(.naked) void {
     asm volatile (
-        // 1. Save stack pointer at exception point
+        // Save stack pointer at exception point
         \\ csrw sscratch, sp
 
-        // 2. Allocate space for TrapFrame
-        \\ addi sp, sp, -8 * 31
+        // Allocate space for TrapFrame
+        \\ addi sp, sp, -8 * 35
 
-        // 3. Save all GPRs except for sp
+        // Save all GPRs except for sp
         \\ sd ra, 8 * 0(sp)
         \\ sd gp, 8 * 2(sp)
         \\ sd tp, 8 * 3(sp)
@@ -79,15 +77,35 @@ export fn _trap_entry() align(4) callconv(.naked) void {
         \\ sd a6, 8 * 29(sp)
         \\ sd a7, 8 * 30(sp)
 
-        // 4. Save sp @ exception point
+        // Save CSRs
+        \\ csrr a0, sepc
+        \\ sd a0, 8 * 31(sp)
+        \\ csrr a0, sstatus
+        \\ sd a0, 8 * 32(sp)
+        \\ csrr a0, scause
+        \\ sd a0, 8 * 33(sp)
+        \\ csrr a0, stval
+        \\ sd a0, 8 * 34(sp)
+
+        // Save sp @ exception point
         \\ csrr a0, sscratch
         \\ sd a0, 8 * 1(sp)
 
-        // 5. call trap handler
+        // call trap handler
         \\ mv a0, sp
         \\ call handleTrap
 
-        // 6. Restore all except for sp
+        // Restore CSRs
+        \\ ld a0, 8 * 31(sp)
+        \\ csrw sepc, a0
+        \\ ld a0, 8 * 32(sp)
+        \\ csrw sstatus, a0
+        \\ ld a0, 8 * 33(sp)
+        \\ csrw scause, a0
+        \\ ld a0, 8 * 34(sp)
+        \\ csrw stval, a0
+
+        // Restore all GPR except for sp
         \\ ld ra, 8 * 0(sp)
         \\ ld gp, 8 * 2(sp)
         \\ ld tp, 8 * 3(sp)
@@ -122,8 +140,10 @@ export fn _trap_entry() align(4) callconv(.naked) void {
         \\ ld a6, 8 * 29(sp)
         \\ ld a7, 8 * 30(sp)
 
-        // 7. Restore sp and return
+        // Restore sp
         \\ ld sp, 8 * 1(sp)
+
+        // Return to source
         \\ sret
     );
 }

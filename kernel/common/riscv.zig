@@ -28,6 +28,7 @@ pub inline fn getHartId() u64 {
 }
 
 /// Saved context of CPU at an exception point. DO NOT CHANGE THIS!!!
+/// IMPORTANT this must stay in sync with exception.zig
 pub const TrapFrame = extern struct {
     // Non-caller saved
     /// Return Address
@@ -72,4 +73,10 @@ pub const TrapFrame = extern struct {
     a5: u64,
     a6: u64,
     a7: u64,
+
+    // CSRs
+    sepc: u64,
+    sstatus: u64,
+    scause: u64,
+    stval: u64,
 };
