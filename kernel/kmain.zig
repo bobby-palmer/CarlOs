@@ -34,21 +34,25 @@ export fn _kmain(_: usize, fdt: usize) noreturn {
 
     vma.init();
 
-    var list = std.ArrayList(usize).initCapacity(heap.gpa, 100)
-        catch unreachable;
 
     console.debug_writer.print("Init\n", .{}) 
         catch unreachable;
 
     for (0..10) |_| {
+        var list = std.ArrayList(usize).initCapacity(heap.gpa, 100)
+            catch unreachable;
+
         while (list.items.len < 10000) {
             _ = list.addOne(heap.gpa) catch unreachable;
         }
 
-        console.debug_writer.print("Init\n", .{}) 
+        console.debug_writer.print("1\n", .{}) 
             catch unreachable;
 
         list.deinit(heap.gpa);
+
+        console.debug_writer.print("2\n", .{}) 
+            catch unreachable;
     }
 
     _ = sbi.DebugConsole.consoleWrite("Hello from kmain\n") catch {};

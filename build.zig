@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const optimize = b.standardOptimizeOption(.{});
+    // const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
         .name = "kernel",
@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("kernel/kmain.zig"),
             .code_model = .medium,
             .target = target,
-            .optimize = optimize,
+            .optimize = .Debug,
             .strip = false,
         })
     });
