@@ -19,6 +19,7 @@ pub fn build(b: *std.Build) void {
             .code_model = .medium,
             .target = target,
             .optimize = optimize,
+            .strip = false,
         })
     });
 
@@ -26,6 +27,8 @@ pub fn build(b: *std.Build) void {
     exe.setLinkerScript(b.path("kernel/kernel.ld"));
 
     b.installArtifact(exe);
+
+    // QEMU
 
     const run_kernel = b.addSystemCommand(&[_][]const u8 {
         "qemu-system-riscv64",
@@ -43,4 +46,22 @@ pub fn build(b: *std.Build) void {
 
     const run_step = b.step("run", "Run the kernel in qemu");
     run_step.dependOn(&run_kernel.step);
+
+    // DEBUG
+    const get_addr = b.addSystemCommand(&[_][]const u8 { "riscv64-unknown-elf-addr2line" });
+
+    get_addr.addArg("-e");
+    get_addr.addArtifactArg(exe);
+    get_addr.step.dependOn(&exe.step);
+
+    const address_arg = b.option(
+        []const u8, // The type of input expected (a string)
+        "address",   // The name of the flag (used as --address)
+        "The memory address."
+    ) orelse &.{};
+
+    get_addr.addArg(address_arg);
+
+    const get_addr_step = b.step("get-addr", "NONE");
+    get_addr_step.dependOn(&get_addr.step);
 }
